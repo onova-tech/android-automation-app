@@ -13,4 +13,5 @@ description: Business Systems Analyst - Pattern discovery, spec creation, accept
 # - Direct Linear ticket commenting
 # REPLACED_WITH:
 # - TBD
+model: opus
 ---

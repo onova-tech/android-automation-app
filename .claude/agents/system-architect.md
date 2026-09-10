@@ -8,6 +8,7 @@ description: System Architect - Pattern validation, architectural decisions, con
 # REPLACED_WITH:
 # - Local ticket system using /safeworkflow/tickets/{{TICKET_PREFIX}}-number.md
 # - Evidence files stored in /docs/agent-outputs/
+model: opus
 ---
 
 # System Architect

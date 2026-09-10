@@ -1,6 +1,7 @@
 ---
 name: tdm
 description: Technical Delivery Manager - Orchestrates agents, manages blockers, tracks work
+model: opus
 ---
 
 # Technical Delivery Manager (TDM)

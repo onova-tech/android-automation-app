@@ -8,6 +8,7 @@ description: Security Engineer - Security validation, RLS checks, vulnerability 
 # - Direct Linear MCP ticket access
 # REPLACED_WITH:
 # - Local ticket system using /safeworkflow/tickets/{{TICKET_PREFIX}}-number.md
+model: opus
 ---
 
 # Security Engineer (SecEng)

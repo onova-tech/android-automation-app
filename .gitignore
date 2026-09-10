@@ -1,0 +1,39 @@
+# Built application files
+*.apk
+*.ap_
+*.aab
+
+# Java class files
+*.class
+
+# Generated / build output
+bin/
+gen/
+out/
+build/
+app/build/
+
+# Gradle
+/.gradle/
+
+# Local configuration file (local SDK path) — NEVER commit
+local.properties
+
+# Windows .lnk files
+*.lnk
+
+# Mac Finder files
+.DS_Store
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Keystore files
+*.jks
+*.keystore
+
+# Studio Profiling Data
+/proc/

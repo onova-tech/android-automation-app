@@ -6,6 +6,8 @@ description: Release Train Engineer - PR creation, CI/CD validation, release coo
 # STOPPED:
 # - Direct Linear MCP ticket access
 # REPLACED_WITH:
+# - Local ticket system using /safeworkflow/tickets/{{TICKET_PREFIX}}-number.md
+model: opus
 ---
 
 # Release Train Engineer (RTE)

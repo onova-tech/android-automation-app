@@ -1,7 +1,7 @@
 # PROJ-android-agent-000: Local-First Android Automation Runtime (Phase 0)
 
 ## Status
-Status: Phase 0: Feasibility Study (COMPLETE - Go/No-Go: GO)
+Status: Phase 1: Proof of Concept (READY FOR IMPLEMENTATION - Patterns & Config Required)
 
 ## Created
 Created: 2026-07-02 00:22
@@ -865,6 +865,54 @@ yarn ci:validate
 - You react to blocks and escalate when needed
 
 **DO NOT** start working on technical implementation yet. Wait for the coordination to complete and Phase 0 execution planning to finish before any development work begins.
+
+---
+
+# Phase 1 Kickoff Evidence (2026-07-06)
+
+## TDM Coordination Summary — Phase 1 Planning Complete
+
+**Session IDs Coordinated**:
+- BSA (Phase 1 Spec): ses_0c60b1858ffelsZxBars62on5T
+- System Architect (Architecture Review): ses_0c601b258ffeH4BVC3nlN4NXO2
+- BSA (Android Patterns): ses_0c5c6ec51ffeinlbC4RUvf5KZW
+- System Architect (Agent Config): ses_0c5be3841ffeB0kDP8YPIOlEsg
+- TDM Coordination: tdm-phase1-kickoff-20260706
+
+**Deliverables Created (15 files)**:
+
+| Deliverable | Location | Agent |
+|------------|----------|-------|
+| Phase 1 Implementation Spec (1,271 lines) | `specs/SPEC-PROJ-000-phase-1-poc-implementation.md` | BSA |
+| Architecture Review (730 lines) | `reports/architecture-review-phase1.md` | System Architect |
+| Android Project Scaffold Pattern | `patterns_library/architectural/android-project-scaffold.md` | BSA |
+| Accessibility Service Pattern | `patterns_library/architectural/accessibility-service.md` | BSA |
+| YAML Parser Pattern | `patterns_library/architectural/yaml-parser.md` | BSA |
+| Selector Engine Pattern | `patterns_library/architectural/selector-engine.md` | BSA |
+| Execution Engine Pattern | `patterns_library/architectural/execution-engine.md` | BSA |
+| Android Unit Testing Pattern | `patterns_library/testing/android-unit-testing.md` | BSA |
+| Android Developer Agent Config | `.claude/agents/android-developer.md` | System Architect |
+| Example Workflow (Calculator) | `examples/calculator_add.yaml` | BSA |
+| ADR-001: Kotlin Language | `docs/adr/ADR-001-kotlin-language.md` | BSA |
+| ADR-002: SnakeYAML Parser | `docs/adr/ADR-002-snakeyaml-parser.md` | BSA |
+| ADR-003: Native AccessibilityService | `docs/adr/ADR-003-native-accessibility-service.md` | BSA |
+| ADR-004: Compose over XML | `docs/adr/ADR-004-compose-over-xml.md` | System Architect |
+| ADR-005: POC Scope Trims | `docs/adr/ADR-005-poc-scope-trims.md` | BSA |
+| TDM Coordination Report | `reports/tdm/tdm-coordination-report-phase1-kickoff.md` | TDM |
+
+**Architecture Verdict**: APPROVED WITH CHANGES
+- Trim OCR Fallback, ADB Helper, complex Event Bus to Phase 2
+- Technology: Kotlin + SnakeYAML 2.x + Jetpack Compose + Native AccessibilityService
+- POC scope: 5 core components (Editor, Parser, Engine, Selector, Service)
+
+**Implementation Plan**: 17-day plan (riskiest components first)
+- Week 1: Foundation (Scaffold → Service → Parser → Selectors)
+- Week 2: Execution & UI (Engine → Actions → Editor)
+- Week 3: Testing & Polish (E2E → Unit Tests → Docs)
+
+**Blockers**: None — all patterns and agent config created
+
+**Status**: Phase 1 is READY FOR IMPLEMENTATION
 
 ---
 

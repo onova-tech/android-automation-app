@@ -10,6 +10,7 @@ description: Quality Assurance Specialist - Testing execution using test pattern
 # REPLACED_WITH:
 # - Local ticket system using /safeworkflow/tickets/{{TICKET_PREFIX}}-number.md
 # - Evidence files stored in docs/agent-outputs/
+model: opus
 ---
 
 # Quality Assurance Specialist (QAS)

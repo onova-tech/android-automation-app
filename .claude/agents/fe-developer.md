@@ -7,6 +7,7 @@ description: Frontend Developer - UI implementation using patterns
 # - Direct Linear MCP ticket access
 # REPLACED_WITH:
 # - Local ticket system using /safeworkflow/tickets/{{TICKET_PREFIX}}-number.md
+model: opus
 ---
 
 # Frontend Developer

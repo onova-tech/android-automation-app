@@ -7,6 +7,7 @@ description: Backend Developer - API implementation using patterns, RLS enforcem
 # - Direct Linear MCP ticket access
 # REPLACED_WITH:
 # - Local ticket system using /safeworkflow/tickets/{{TICKET_PREFIX}}-number.md
+model: opus
 ---
 
 # Backend Developer

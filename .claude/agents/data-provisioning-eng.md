@@ -8,6 +8,7 @@ description: Data Provisioning Engineer - Test data, database access, data valid
 # - Direct Linear MCP ticket access
 # REPLACED_WITH:
 # - Local ticket system using /safeworkflow/tickets/{{TICKET_PREFIX}}-number.md
+model: opus
 ---
 
 # Data Provisioning Engineer (DPE)
