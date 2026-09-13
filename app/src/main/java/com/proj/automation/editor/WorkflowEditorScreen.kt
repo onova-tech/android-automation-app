@@ -319,7 +319,7 @@ private val DEFAULT_WORKFLOW = """
 name: Calculator - Add 2 + 3
 steps:
   - launch_app:
-      package: com.android.calculator2
+      package: com.google.android.calculator
 
   - wait:
       seconds: 2

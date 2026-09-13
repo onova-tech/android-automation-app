@@ -8,6 +8,21 @@
     <!-- Optional: Prevent OEM battery optimization from killing service -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!--
+      Package visibility (Android 11+ / API 30+): an app can only see other
+      installed packages that it declares access to here. The automation engine
+      launches arbitrary apps by package name via PackageManager, so we declare
+      that we query for launcher activities. Without this, getLaunchIntentForPackage()
+      / getPackageInfo() throw NameNotFoundException ("Package not found") for
+      apps like com.google.android.calculator on API 30+.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="false"
