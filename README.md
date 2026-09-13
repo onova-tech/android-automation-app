@@ -6,21 +6,21 @@ A minimal Android proof-of-concept that loads a YAML workflow from a textbox, pa
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  Android App (Kotlin, AGP, Compose/XML)              │
-│                                                      │
+│  Android App (Kotlin, AGP, Compose/XML)             │
+│                                                     │
 │  ┌───────────┐   ┌──────────┐   ┌───────────────┐   │
 │  │  YAML     │──▶│  YAML    │──▶│  Execution    │   │
 │  │  Editor   │   │  Parser  │   │  Engine       │   │
 │  └───────────┘   └──────────┘   └───────┬───────┘   │
-│                                          │           │
+│                                         │           │
 │  ┌───────────┐   ┌──────────┐           ▼           │
 │  │  State    │◀──│  Event   │   ┌───────────────┐   │
 │  │  Manager  │   │  Bus     │──▶│  Selector     │   │
 │  └───────────┘   └──────────┘   │  Engine       │   │
-│                    ▲             └───────┬───────┘   │
+│                    ▲            └───────┬───────┘   │
 │  ┌───────────┐  ┌──┴──────────┐  ┌──────┴───────┐   │
-│  │  Error    │  │  Retry /    │◀─│  Accessibility│   │
-│  │  Handler  │  │  Timeout    │  │  Service      │   │
+│  │  Error    │  │  Retry /    │◀─│ Accessibility│   │
+│  │  Handler  │  │  Timeout    │  │ Service      │   │
 │  └───────────┘  └─────────────┘  └──────────────┘   │
 └─────────────────────────────────────────────────────┘
 ```
