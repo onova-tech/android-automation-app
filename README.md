@@ -33,7 +33,7 @@ A minimal Android proof-of-concept that loads a YAML workflow from a textbox, pa
 | **YAML Parser** | `parser/YamlParser.kt` | SnakeYAML-based parser with typed AST |
 | **Execution Engine** | `engine/ExecutionEngine.kt` | Step loop orchestrator with retry/timeout |
 | **Action Handlers** | `engine/actions/` | LaunchApp, Wait, Click, Type, Back, Home, WaitFor, Log |
-| **Selector Engine** | `selector/SelectorEngine.kt` | Multi-strategy fallback (resource_id → text → content_description → class_name) |
+| **Selector Engine** | `selector/SelectorEngine.kt` | Resolves `text` / `resource_id` / `content_description` / `class_name` selectors, with explicit `fallback:` chains |
 | **Automation Service** | `accessibility/AutomationService.kt` | AccessibilityService bridge to Android API |
 | **State Manager** | `service/StateManager.kt` | Current UI state snapshot |
 | **Event Bus** | `service/EventBus.kt` | Typed pub/sub for events |
@@ -94,7 +94,18 @@ Expected result: Calculator displays "5"
 | By resource ID | `resource_id: "com.app:id/btn"` | Matches Android resource ID |
 | By content description | `content_description: "submit"` | Matches accessibility label |
 | By class name | `class_name: "android.widget.Button"` | Matches Java class name |
-| Composite fallback | `fallback: [...]` | Tries each sub-selector in order |
+| Composite fallback | `fallback: [...]` | Tries each sub-selector in order (the only way to fall back across selector types) |
+
+## Retries, Timeouts and Failure Policy
+
+Every step accepts these keys:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `retries` | `1` | Total attempts for the step |
+| `retry_delay` | `1000` | Milliseconds between attempts |
+| `timeout` | `30000` | Milliseconds allowed for all attempts together (not applied to `wait`) |
+| `on_failure` | `abort` | `abort`, `continue`, or `retry(n, ms)` — `retry` overrides `retries`/`retry_delay` |
 
 ## Testing
 
@@ -162,7 +173,7 @@ app/src/test/java/com/proj/automation/
 
 | Limitation | Impact | Mitigation |
 |-----------|--------|------------|
-| Requires API 26+ (Android 8.0+) | Cannot run on older devices | Foreground service mandatory on API 26+ |
+| Requires API 26+ (Android 8.0+) | Cannot run on older devices | minSdk 26 in build config |
 | Cannot automate FLAG_SECURE apps | Banking, VPN, DRM apps blocked | POC avoids FLAG_SECURE apps |
 | Accessibility Service must be manually enabled | No programmatic enable | Document setup steps for users |
 | No Play Store distribution | Sideload only for POC | Acceptable for POC phase |

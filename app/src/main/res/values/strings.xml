@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Android Automation</string>
-    <string name="notification_channel_name">Automation Service</string>
-    <string name="notification_channel_description">Android Automation Runtime service notification</string>
-    <string name="notification_title">Android Automation</string>
-    <string name="notification_text">Automation service is running</string>
     <string name="editor_title">Workflow Editor</string>
     <string name="editor_run">Run</string>
     <string name="editor_stop">Stop</string>

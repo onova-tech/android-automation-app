@@ -2,7 +2,7 @@ name: Calculator - Add 2 + 3
 description: Automate 2 + 3 = 5 on the built-in Calculator app
 steps:
   - launch_app:
-      package: com.android.calculator2
+      package: com.google.android.calculator  # AOSP images: com.android.calculator2
 
   - wait:
       seconds: 2

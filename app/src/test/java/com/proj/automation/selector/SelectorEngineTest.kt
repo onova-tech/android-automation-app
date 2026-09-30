@@ -38,6 +38,28 @@ class SelectorEngineTest {
 
         assertEquals("none_matched", result.strategy)
         assertFalse(result.success)
-        assertTrue(result.fallbacksAttempted.isNotEmpty())
+        assertEquals(listOf("text"), result.fallbacksAttempted)
+    }
+
+    @Test
+    fun `composite selector falls back to a later sub-selector`() {
+        val button: AccessibilityNodeInfo = mockk()
+        every { button.text } returns "OK"
+        every { button.childCount } returns 0
+
+        val root: AccessibilityNodeInfo = mockk()
+        every { root.text } returns null
+        every { root.childCount } returns 1
+        every { root.getChild(0) } returns button
+        every { root.findAccessibilityNodeInfosByViewId(any()) } returns emptyList()
+
+        val selector = Selector.Composite(
+            listOf(Selector.ByResourceId("com.app:id/ok"), Selector.ByText("ok"))
+        )
+        val result = engine.resolveWithDetails(selector, root)
+
+        assertSame(button, result.node)
+        assertEquals("text", result.strategy)
+        assertEquals(listOf("resource_id"), result.fallbacksAttempted)
     }
 }

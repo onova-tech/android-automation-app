@@ -6,10 +6,10 @@ import com.proj.automation.engine.models.StepResult
 import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Selector
 import com.proj.automation.parser.Step
-import kotlinx.coroutines.delay
 
 /**
- * Finds an element by selector and taps it, with configurable retry support.
+ * Finds an element by selector and taps it. Makes a single attempt;
+ * retries are applied by [com.proj.automation.engine.ErrorHandler].
  */
 class ClickHandler : ActionHandler {
     override val actionType = ActionType.CLICK
@@ -23,36 +23,28 @@ class ClickHandler : ActionHandler {
                 errorMessage = "click requires a selector"
             )
 
-        val maxAttempts = step.retries.coerceAtLeast(1)
-        val retryDelay = step.retryDelayMs
+        context.throwIfCancelled()
 
-        for (attempt in 1..maxAttempts) {
-            context.throwIfCancelled()
+        val resolved = context.selectorEngine.resolve(
+            selector, context.automation.getRootNode()
+        ) ?: return StepResult(
+            stepIndex = 0, action = actionType, success = false,
+            durationMs = System.currentTimeMillis() - startTime,
+            errorMessage = "Element not found"
+        )
 
-            val resolved = context.selectorEngine.resolve(
-                selector, context.automation.getRootNode()
+        if (!context.automation.click(resolved)) {
+            return StepResult(
+                stepIndex = 0, action = actionType, success = false,
+                durationMs = System.currentTimeMillis() - startTime,
+                errorMessage = "Element found but click failed"
             )
-            if (resolved != null) {
-                val clicked = context.automation.click(resolved)
-                if (clicked) {
-                    return StepResult(
-                        stepIndex = 0, action = actionType, success = true,
-                        durationMs = System.currentTimeMillis() - startTime,
-                        strategy = resolveStrategyName(selector),
-                        details = mapOf("attempt" to attempt)
-                    )
-                }
-            }
-
-            if (attempt < maxAttempts) {
-                delay(retryDelay)
-            }
         }
 
         return StepResult(
-            stepIndex = 0, action = actionType, success = false,
+            stepIndex = 0, action = actionType, success = true,
             durationMs = System.currentTimeMillis() - startTime,
-            errorMessage = "Element not found after $maxAttempts attempts"
+            strategy = resolveStrategyName(selector)
         )
     }
 

@@ -6,7 +6,7 @@ import com.proj.automation.parser.OnFailurePolicy
 import com.proj.automation.parser.Workflow
 import com.proj.automation.service.EventBus
 import com.proj.automation.selector.SelectorEngine
-import kotlinx.coroutines.delay
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Core step-loop orchestrator that iterates over parsed workflow steps,
@@ -19,14 +19,17 @@ class ExecutionEngine(
     private val eventBus: EventBus
 ) {
 
-    private val cancellationToken = CancellationToken()
+    /** Token for the current run; replaced on each [execute] so a previous Stop doesn't carry over. */
+    @Volatile
+    private var cancellationToken = CancellationToken()
 
     /**
      * Execute a parsed workflow. Returns the full execution result with
      * per-step results, success/failure status, and timing.
      */
     suspend fun execute(workflow: Workflow): ExecutionResult {
-        var result = ExecutionResult(
+        val token = CancellationToken().also { cancellationToken = it }
+        val result = ExecutionResult(
             workflowName = workflow.name,
             startTime = System.currentTimeMillis()
         )
@@ -42,13 +45,12 @@ class ExecutionEngine(
             automation = com.proj.automation.accessibility.AutomationBridge.get(),
             selectorEngine = SelectorEngine(),
             eventBus = eventBus,
-            cancellationToken = cancellationToken
+            cancellationToken = token
         )
 
         for ((index, step) in workflow.steps.withIndex()) {
-            context.throwIfCancelled()
-
             val stepResult = try {
+                context.throwIfCancelled()
                 errorHandler.executeWithPolicy(step, { ctx ->
                     val singleResult = actionDispatcher.dispatch(step, ctx)
                     singleResult.copy(stepIndex = index)
@@ -58,6 +60,9 @@ class ExecutionEngine(
                 result.endTime = System.currentTimeMillis()
                 result.totalDurationMs = result.endTime - result.startTime
                 return result
+            } catch (e: CancellationException) {
+                // Coroutine cancellation (job cancelled) must propagate, not be recorded as a step failure
+                throw e
             } catch (e: Exception) {
                 StepResult(
                     stepIndex = index,

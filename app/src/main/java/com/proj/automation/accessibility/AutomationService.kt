@@ -1,16 +1,10 @@
 package com.proj.automation.accessibility
 
 import android.accessibilityservice.AccessibilityService
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import androidx.core.app.NotificationCompat
-import com.proj.automation.MainActivity
-import com.proj.automation.R
 import com.proj.automation.service.EventBus
 import com.proj.automation.service.StateManager
 import java.util.concurrent.atomic.AtomicReference
@@ -18,8 +12,6 @@ import java.util.concurrent.atomic.AtomicReference
 class AutomationService : AccessibilityService(), AutomationBridge {
 
     companion object {
-        const val CHANNEL_ID = "automation_service_channel"
-        const val NOTIFICATION_ID = 1
         const val TAG = "AutomationService"
 
         @Volatile
@@ -45,7 +37,6 @@ class AutomationService : AccessibilityService(), AutomationBridge {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
         _instance = this
         AutomationBridge.init(this)
     }
@@ -54,9 +45,9 @@ class AutomationService : AccessibilityService(), AutomationBridge {
         _connected = true
         android.util.Log.i(TAG, "AutomationService connected — ready for automation")
 
-        // Initialize StateManager and EventBus (deferred to avoid circular imports)
+        // Use the process-wide bus so the editor UI receives this service's events
         stateManager = StateManager()
-        eventBus = EventBus()
+        eventBus = EventBus.default
 
         // Wire EventBus to publish events from this service
         stateManager?.setEventBus(eventBus)
@@ -76,45 +67,6 @@ class AutomationService : AccessibilityService(), AutomationBridge {
         return super.onUnbind(intent)
     }
 
-    // ——— Foreground Service Setup (API 26+) ———
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = buildNotification()
-        startForeground(NOTIFICATION_ID, notification)
-        return START_STICKY
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                getString(R.string.notification_channel_name),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = getString(R.string.notification_channel_description)
-                setShowBadge(false)
-            }
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
-    }
-
-    private fun buildNotification(): android.app.Notification {
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_title))
-            .setContentText(getString(R.string.notification_text))
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .setSilent(true)
-            .build()
-    }
-
     // ——— AccessibilityEvent Handling ———
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -129,9 +81,10 @@ class AutomationService : AccessibilityService(), AutomationBridge {
             }
 
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                stateManager?.onContentChanged(getRootNode())
+                val root = getRootNode()
+                stateManager?.onContentChanged(root)
                 eventBus?.publish(
-                    com.proj.automation.service.EventBus.Event.AccessibilityTreeChanged(getRootNode())
+                    com.proj.automation.service.EventBus.Event.AccessibilityTreeChanged(root)
                 )
             }
 

@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -29,6 +30,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Main screen for composing and running YAML workflows.
@@ -37,7 +45,20 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkflowEditorScreen() {
-    val permissionEnabled = checkAccessibilityPermission(LocalContext.current)
+    val context = LocalContext.current
+    var permissionEnabled by remember { mutableStateOf(checkAccessibilityPermission(context)) }
+
+    // Re-check when returning from system Settings
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permissionEnabled = checkAccessibilityPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     // Editor state
     var yamlText by remember { mutableStateOf(DEFAULT_WORKFLOW) }
@@ -47,7 +68,7 @@ fun WorkflowEditorScreen() {
 
     // Engine references (created once per composition)
     val parser = remember { YamlParser() }
-    val eventBus = remember { EventBus() }
+    val eventBus = remember { EventBus.default }
     val handlers = remember { buildHandlerRegistry() }
     val dispatcher = remember { ActionDispatcher(handlers) }
     val errorHandler = remember { ErrorHandler() }
@@ -57,31 +78,25 @@ fun WorkflowEditorScreen() {
     val scope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     var currentJob by remember { mutableStateOf<Job?>(null) }
 
-    // Subscribe to event bus for log updates
-    val subscription = remember {
-        eventBus.subscribe { event ->
-            when (event) {
-                is EventBus.Event.StepCompleted -> {
-                    logLines = logLines + LogEntry(
-                        timestamp = System.currentTimeMillis(),
-                        text = if (event.success) "[✓] Step ${event.stepIndex}: ${event.action}"
-                        else "[✗] Step ${event.stepIndex}: ${event.action} — ${event.errorMessage ?: "failed"}"
-                    )
+    // Subscribe to event bus for log updates. Events arrive on background threads,
+    // so appends are posted to the main thread to keep them ordered and race-free.
+    DisposableEffect(eventBus) {
+        val mainHandler = Handler(Looper.getMainLooper())
+        val subscription = eventBus.subscribe { event ->
+            val text = when (event) {
+                is EventBus.Event.StepCompleted ->
+                    if (event.success) "[✓] Step ${event.stepIndex}: ${event.action}"
+                    else "[✗] Step ${event.stepIndex}: ${event.action} — ${event.errorMessage ?: "failed"}"
+                is EventBus.Event.LogMessage -> "[LOG] ${event.message}"
+                else -> null
+            }
+            if (text != null) {
+                mainHandler.post {
+                    logLines = logLines + LogEntry(timestamp = System.currentTimeMillis(), text = text)
                 }
-                is EventBus.Event.LogMessage -> {
-                    logLines = logLines + LogEntry(
-                        timestamp = System.currentTimeMillis(),
-                        text = "[LOG] ${event.message}"
-                    )
-                }
-                else -> {}
             }
         }
-    }
-
-    LaunchedEffect(Unit) {
-        // Clean up subscription when leaving
-        subscription
+        onDispose { eventBus.unsubscribe(subscription) }
     }
 
     Column(
@@ -116,7 +131,12 @@ fun WorkflowEditorScreen() {
         if (!permissionEnabled) {
             Spacer(modifier = Modifier.height(8.dp))
             Button(
-                onClick = { /* Navigate to settings — requires activity context */ },
+                onClick = {
+                    context.startActivity(
+                        Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Open Settings")
@@ -157,6 +177,9 @@ fun WorkflowEditorScreen() {
                             engine = engine,
                             parser = parser,
                             yamlText = yamlText,
+                            onError = { message ->
+                                logLines = logLines + LogEntry(System.currentTimeMillis(), "[✗] $message")
+                            },
                             onResult = { result ->
                                 isRunning = false
                                 statusText = if (result.completedSuccessfully) {
@@ -268,6 +291,7 @@ private suspend fun executeWorkflow(
     engine: ExecutionEngine,
     parser: YamlParser,
     yamlText: String,
+    onError: (String) -> Unit,
     onResult: (ExecutionResult) -> Unit
 ) {
     try {
@@ -276,9 +300,13 @@ private suspend fun executeWorkflow(
         withContext(Dispatchers.Main) {
             onResult(result)
         }
+    } catch (e: CancellationException) {
+        // Stop pressed — the UI already shows "Cancelled"
+        throw e
     } catch (e: Exception) {
         val errorMsg = "Parse error: ${e.message}"
         withContext(Dispatchers.Main) {
+            onError(errorMsg)
             onResult(
                 ExecutionResult(
                     workflowName = null,
@@ -288,7 +316,6 @@ private suspend fun executeWorkflow(
                     endTime = System.currentTimeMillis()
                 )
             )
-            // Log the error — in a real app we'd update state via a callback
             android.util.Log.e("WorkflowEditor", errorMsg, e)
         }
     }

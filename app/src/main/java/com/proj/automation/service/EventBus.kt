@@ -1,6 +1,8 @@
 package com.proj.automation.service
 
 import android.view.accessibility.AccessibilityNodeInfo
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Typed event bus for decoupling Accessibility Service events from the Execution Engine.
@@ -39,18 +41,17 @@ class EventBus {
         internal val id: String
     )
 
-    private val handlers = mutableMapOf<String, (Event) -> Unit>()
-    private val handlerIds = mutableMapOf<String, String>()
+    // Published from the accessibility and engine threads, subscribed from the UI thread
+    private val handlers = ConcurrentHashMap<String, (Event) -> Unit>()
 
-    private var nextId = 0
+    private val nextId = AtomicInteger(0)
 
     /**
      * Subscribe to events. Returns a Subscription handle.
      */
     fun subscribe(handler: (Event) -> Unit): Subscription {
-        val id = "handler_${nextId++}"
+        val id = "handler_${nextId.getAndIncrement()}"
         handlers[id] = handler
-        handlerIds[id] = handler.hashCode().toString()
         return Subscription(id)
     }
 
@@ -58,9 +59,7 @@ class EventBus {
      * Publish an event to all subscribers.
      */
     fun publish(event: Event) {
-        // Copy the map to avoid ConcurrentModificationException
-        val snapshot = handlers.toList()
-        for ((_, handler) in snapshot) {
+        for (handler in handlers.values) {
             try {
                 handler(event)
             } catch (e: Exception) {
@@ -75,6 +74,10 @@ class EventBus {
      */
     fun unsubscribe(subscription: Subscription) {
         handlers.remove(subscription.id)
-        handlerIds.remove(subscription.id)
+    }
+
+    companion object {
+        /** Process-wide bus shared by the AccessibilityService and the UI. */
+        val default: EventBus by lazy { EventBus() }
     }
 }

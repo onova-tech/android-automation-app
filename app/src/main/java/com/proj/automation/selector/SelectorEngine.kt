@@ -4,18 +4,18 @@ import android.view.accessibility.AccessibilityNodeInfo
 import com.proj.automation.parser.Selector
 
 /**
- * Multi-strategy selector engine that resolves element selectors against
- * the Android accessibility tree using a weighted fallback chain.
+ * Selector engine that resolves element selectors against the Android accessibility tree.
  *
- * Strategy priority order (highest weight first):
- * 1. resource_id (weight: 10) — most specific, stable within an app version
- * 2. text (weight: 8) — readable but i18n-sensitive
- * 3. content_description (weight: 7) — accessible label, more stable than text
- * 4. class_name + index (weight: 5) — structural, fragile across UI changes
+ * A single selector (e.g. `text:`) is matched only by its own strategy — a text value
+ * can't be looked up as a resource ID. Fallback across strategies is expressed in YAML
+ * with a `fallback:` list, which is tried in the order written. Recommended order:
+ * 1. resource_id — most specific, stable within an app version
+ * 2. text — readable but i18n-sensitive
+ * 3. content_description — accessible label, more stable than text
+ * 4. class_name + index — structural, fragile across UI changes
  */
 class SelectorEngine {
 
-    /** Ordered list of strategies by priority (highest weight first) */
     private val strategies: List<SelectorStrategy> = listOf(
         ByResourceIdStrategy(),
         ByTextStrategy(),
@@ -69,13 +69,14 @@ class SelectorEngine {
             attempted.add(strategy.name)
         }
 
-        // If no strategy matched, try composite fallback explicitly defined in YAML
+        // Composite: try each sub-selector in the order defined in YAML
         if (selector is Selector.Composite) {
             for (subSelector in selector.fallbackOrder) {
                 val subResult = resolveWithDetails(subSelector, root)
                 if (subResult.node != null) {
-                    return subResult
+                    return subResult.copy(fallbacksAttempted = attempted + subResult.fallbacksAttempted)
                 }
+                attempted.addAll(subResult.fallbacksAttempted)
             }
         }
 
@@ -86,20 +87,17 @@ class SelectorEngine {
     }
 
     /**
-     * Determine which strategies to attempt based on the selector type.
-     * For a specific selector (e.g. ByText), only try that strategy first,
-     * then fall back to the full chain.
+     * The strategy matching the selector's type. Composite selectors have none of
+     * their own; their sub-selectors are resolved individually.
      */
     private fun resolveStrategyOrder(selector: Selector): List<SelectorStrategy> {
-        return when (selector) {
-            is Selector.ByResourceId -> listOf(strategies.first { it.name == "resource_id" }) + strategies
-            is Selector.ByText -> listOf(strategies.first { it.name == "text" }) + strategies
-            is Selector.ByContentDescription ->
-                listOf(strategies.first { it.name == "content_description" }) + strategies
-            is Selector.ByClassName ->
-                listOf(strategies.first { it.name == "class_name" }) + strategies
-            is Selector.Composite -> strategies // Let composite handle its own order
-            else -> strategies
+        val name = when (selector) {
+            is Selector.ByResourceId -> "resource_id"
+            is Selector.ByText -> "text"
+            is Selector.ByContentDescription -> "content_description"
+            is Selector.ByClassName -> "class_name"
+            else -> return emptyList()
         }
+        return strategies.filter { it.name == name }
     }
 }
