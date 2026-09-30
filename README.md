@@ -190,6 +190,12 @@ app/src/test/java/com/proj/automation/
 | [ADR-003](docs/adr/ADR-003-native-accessibility-service.md) | Native AccessibilityService over UI Automator | Accepted |
 | [ADR-004](docs/adr/ADR-004-compose-over-xml.md) | Jetpack Compose over XML layouts | Accepted |
 | [ADR-005](docs/adr/ADR-005-poc-scope-trims.md) | POC scope trims — deferred to Phase 2 | Accepted |
+| [ADR-006](docs/adr/ADR-006-laya-decision-layer.md) | Laya as local decision layer for element resolution | Proposed |
+| [ADR-007](docs/adr/ADR-007-declarative-yaml-plugins.md) | Declarative YAML plugins, intelligence in the base app | Proposed |
+
+## Vision and Target Architecture
+
+Where this project is heading — a resilient, fully offline automation layer controlled by SMS from a dumbphone — is documented in [`docs/vision/`](docs/vision/README.md): target architecture, YAML plugin system, Laya-based element resolution, action catalog, SMS/security model and roadmap.
 
 ## Next Steps (Phase 2)
 
