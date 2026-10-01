@@ -222,6 +222,21 @@ fun AdminScreen() {
             }
         }
 
+        // ——— Financial apps ———
+        Section("Financial apps") {
+            Text(
+                "Plugins that operate or read these apps are treated as financial, whatever they declare: " +
+                    "trusted signer required, highest risk level, no interrupt rules. One package name per line.",
+                style = MaterialTheme.typography.bodySmall
+            )
+            var financialText by remember(refresh) { mutableStateOf(AgentCoordinator.settings.financialApps.sorted().joinToString("\n")) }
+            OutlinedTextField(value = financialText, onValueChange = { financialText = it }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+            Button(onClick = {
+                val apps = financialText.lines().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                withCredential("Change the list of financial apps") { scope.launch { AgentCoordinator.setFinancialApps(apps); refresh++ } }
+            }) { Text("Save financial apps") }
+        }
+
         // ——— Senders ———
         Section("Allowed SMS senders") {
             Text("One number per line. This filters noise only; every command still needs a code.", style = MaterialTheme.typography.bodySmall)
@@ -316,6 +331,9 @@ fun AdminScreen() {
                     when (decision) {
                         is InstallDecision.Blocked -> Text("⛔ ${decision.reason}", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
                         is InstallDecision.Allowed -> {
+                            if (decision.classification.financial) {
+                                Text("Treated as FINANCIAL: ${decision.classification.financialReasons.joinToString()}", fontWeight = FontWeight.Bold)
+                            }
                             decision.verifiedAs?.let { Text("✓ Verified developer: $it", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold) }
                             decision.warnings.forEach { Text("⚠ $it", color = Color(0xFFE65100), fontWeight = FontWeight.Bold) }
                         }

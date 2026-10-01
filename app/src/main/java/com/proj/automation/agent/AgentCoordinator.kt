@@ -17,6 +17,8 @@ import com.proj.automation.engine.buildHandlerRegistry
 import com.proj.automation.plugin.InstallDecision
 import com.proj.automation.plugin.InstallPolicy
 import com.proj.automation.plugin.Plugin
+import com.proj.automation.plugin.PluginClassifier
+import com.proj.automation.plugin.SignatureStatus
 import com.proj.automation.security.AuditEntry
 import com.proj.automation.security.AuditLog
 import com.proj.automation.security.CodeSheet
@@ -93,7 +95,7 @@ object AgentCoordinator {
 
     suspend fun installPlugin(keyword: String, bytes: ByteArray, plugin: Plugin) = mutex.withLock {
         // checked again here, so no caller can skip the policy
-        val decision = InstallPolicy.evaluate(plugin, store.trustedKeys(), store.installedSigner(plugin.manifest.id))
+        val decision = InstallPolicy.evaluate(plugin, store.trustedKeys(), store.installedSigner(plugin.manifest.id), settings.financialApps)
         if (decision is InstallDecision.Blocked) throw com.proj.automation.plugin.PluginPackageException(decision.reason)
         store.installPlugin(keyword, bytes, plugin)
         reload()
@@ -101,7 +103,7 @@ object AgentCoordinator {
 
     /** What the install policy says about a loaded package (signature, signer continuity, financial rule) */
     fun installDecision(plugin: Plugin, alsoTrusted: Map<String, String> = emptyMap()): InstallDecision =
-        InstallPolicy.evaluate(plugin, store.trustedKeys() + alsoTrusted, store.installedSigner(plugin.manifest.id))
+        InstallPolicy.evaluate(plugin, store.trustedKeys() + alsoTrusted, store.installedSigner(plugin.manifest.id), settings.financialApps)
 
     fun trustedKeys(): Map<String, String> = store.trustedKeys()
 
@@ -109,8 +111,16 @@ object AgentCoordinator {
         store.saveTrustedKeys(store.trustedKeys() + (fingerprint to name))
     }
 
+    /** Plugins that relied on this key and need a trusted signer stop loading */
     suspend fun untrustKey(fingerprint: String) = mutex.withLock {
         store.saveTrustedKeys(store.trustedKeys() - fingerprint)
+        reload()
+    }
+
+    /** Changing the list reclassifies installed plugins on reload */
+    suspend fun setFinancialApps(packages: Set<String>) = mutex.withLock {
+        store.saveSettings(settings.copy(financialApps = packages))
+        reload()
     }
 
     suspend fun removePlugin(keyword: String) = mutex.withLock {
@@ -150,11 +160,26 @@ object AgentCoordinator {
     private fun reload() {
         settings = store.settings()
         val (loaded, problems) = store.loadPlugins()
-        plugins = loaded
-        loadProblems = problems
+        // Re-apply the base app's classification: the financial list or trusted keys may have changed
+        val trusted = store.trustedKeys()
+        val usable = mutableListOf<InstalledPlugin>()
+        val allProblems = problems.toMutableList()
+        for (p in loaded) {
+            val c = PluginClassifier.classify(p.plugin, settings.financialApps)
+            val signer = (p.plugin.signature as? SignatureStatus.Valid)?.fingerprint
+            when {
+                c.needsTrustedSigner && trusted[signer] == null ->
+                    allProblems += "${p.keyword}: needs a trusted signer (${c.reasons.joinToString()}); not loaded"
+                c.financial && p.plugin.interruptRules.isNotEmpty() ->
+                    allProblems += "${p.keyword}: treated as financial but has interrupt rules; not loaded"
+                else -> usable += p.copy(plugin = PluginClassifier.effective(p.plugin, c))
+            }
+        }
+        plugins = usable
+        loadProblems = allProblems
         val sheet = CodeSheet(KeystoreKeys.codeSheetMac(settings.sheetId), settings.sheetId, settings.sheetSize)
         audit = AuditLog(store.auditEntries())
-        router = CommandRouter(loaded.associate { it.keyword to it.plugin }, CodeVerifier(sheet), audit)
+        router = CommandRouter(usable.associate { it.keyword to it.plugin }, CodeVerifier(sheet), audit)
         state = RouterState(store.authState(settings.sheetId)).also { it.stopped = settings.stopped }
     }
 

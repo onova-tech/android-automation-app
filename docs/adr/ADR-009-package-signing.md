@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | **ADR** | ADR-009 |
-| **Status** | **Accepted** (2026-10-01) |
+| **Status** | **Accepted** (2026-10-01). Amended the same day: §9 classification by the base app |
 | **Date** | 2026-10-01 |
 | **Context** | Plugin packages (ADR-007) are installed on the agent phone, which can hold a bank password |
 | **Deciders** | Owner |
@@ -33,6 +33,13 @@ The agent phone has no Internet access in our design, so there is no certificate
 7. **Trusted keys** are managed only in admin mode on the phone (name + fingerprint). There is no revocation beyond removing a key from that list.
 8. **Tooling:** `agp keygen` creates a key pair. The private key is encrypted with a passphrase (PBKDF2 + AES-GCM) and never leaves the developer's machine. `agp sign` adds `PACKAGE.sig`, `agp build --key` builds and signs in one step, and `agp verify` and `agp inspect` show the signature state and fingerprint.
 
+9. **Classification belongs to the base app, not the plugin** (amendment). A plugin's own `category` cannot be trusted, since an author could declare `utility` to avoid the financial rules. Two separate rules decide:
+   - **Rule 1 — financial:** a plugin is financial if it declares so **or** if any app in its `ui_automation`/`read_screen` is on the phone's list of financial apps. The list ships with confirmed package names only (`com.nu.production`) and is edited by the owner in admin mode. A financial plugin needs a trusted signer, cannot have interrupt rules, and gets the financial risk floor on every command: 5, or 4 only if it *declared* itself financial and read-only. A plugin caught by the list gets 5 because its own claims are not trusted.
+   - **Rule 2 — secrets:** a plugin that stores secrets or types the device PIN needs a trusted signer, without becoming financial.
+   - Checking the declared apps is enough because the runtime guard makes a plugin blind to every app it did not declare.
+   - Android has no reliable "finance" attribute: `ApplicationInfo.category` has none, and the store category needs the Internet. So the list is local.
+   - Installed plugins are reclassified whenever the list or the trusted keys change. One that no longer qualifies stops loading and is reported in the admin screen.
+
 ## Alternatives Considered
 
 | Alternative | Why not |
@@ -41,6 +48,8 @@ The agent phone has no Internet access in our design, so there is no certificate
 | X.509 certificates / a CA | Needs infrastructure and online checks; the phone is offline |
 | Ed25519 | Simpler and modern, but native support on the Android baseline is uncertain; it would need an extra library |
 | Reject all unsigned packages | The owner wants to allow them with a warning (useful for personal plugins) |
+| Trusting the plugin's declared category | A plugin could lie to bypass the financial rules (see §9) |
+| Detecting financial apps from Android attributes | No reliable attribute exists offline |
 | Signing each file instead of the lock | The lock already binds every file; one signature over its hash is equivalent and simpler |
 
 ## Consequences
