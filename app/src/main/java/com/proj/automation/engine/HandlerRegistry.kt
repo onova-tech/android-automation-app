@@ -18,6 +18,8 @@ fun buildHandlerRegistry(): Map<ActionType, ActionHandler> {
         ActionType.HOME to HomeHandler(),
         ActionType.SCROLL to ScrollHandler(),
         ActionType.LOG to LogHandler(),
-        ActionType.READ_TEXT to ReadTextHandler()
+        ActionType.READ_TEXT to ReadTextHandler(),
+        ActionType.READ_LIST to ReadListHandler(),
+        ActionType.SCROLL_UNTIL to ScrollUntilHandler()
     )
 }

@@ -11,7 +11,7 @@ class ExpressionException(message: String) : RuntimeException(message)
 object Templates {
 
     private val PLACEHOLDER = Regex("""\$\$\{|\$\{([^}]*)}""")
-    private val PATH = Regex("""[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*""")
+    private val PATH = Regex("""[A-Za-z_][A-Za-z0-9_]*(\.([A-Za-z_][A-Za-z0-9_]*|\d+))*""")
 
     val FILTERS: Map<String, (String) -> String> = mapOf(
         "urlencode" to { s -> URLEncoder.encode(s, "UTF-8").replace("+", "%20") },
@@ -68,14 +68,23 @@ class Scope(initial: Map<String, Any?> = emptyMap()) {
 
     fun isSet(path: String): Boolean = lookup(path) != null
 
+    /**
+     * Resolves a dotted path. Lists support `.size` and numeric indexes (`items.0`) and render
+     * one element per line.
+     */
     fun lookup(path: String): String? {
         var current: Any? = vars
         for (segment in path.split('.')) {
-            current = (current as? Map<*, *>)?.get(segment) ?: return null
+            current = when (val c = current) {
+                is Map<*, *> -> c[segment]
+                is List<*> -> if (segment == "size") c.size else segment.toIntOrNull()?.let { c.getOrNull(it) }
+                else -> null
+            } ?: return null
         }
-        return when (current) {
+        return when (val c = current) {
             null, is Map<*, *> -> null
-            else -> current.toString()
+            is List<*> -> c.joinToString("\n")
+            else -> c.toString()
         }
     }
 }

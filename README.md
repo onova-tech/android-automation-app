@@ -86,6 +86,8 @@ Expected result: Calculator displays "5"
 | Scroll | `scroll` | Scrolls a scrollable node |
 | Log | `log` | Emits log message to execution log |
 | Read text | `read_text` | Reads an element's text (or content description) into a variable with `into` |
+| Read list | `read_list` | Collects item labels in reading order, scrolling for more (`match`, `role`, `max`, `max_scrolls`, `into`) |
+| Scroll until | `scroll_until` | Scrolls until the selector or target is on screen; stops when the list stops moving |
 
 ## DSL v2 (control flow and variables)
 
@@ -100,7 +102,8 @@ Every v1 workflow above still runs unchanged. v2 adds:
 | Error handling | `try: { do: [...], on_error: [...] }` (exposes `${error.code}`, `${error.message}`) |
 | Reusable flows | `flows: { press: { params: { key: {} }, steps: [...] } }` and `call: { flow: press, with: { key: "2" }, into: var }` |
 | Verification | `expect:` on any action (a post-condition), `assert:` as a step |
-| Reading values | `read_text: { selector: {...}, into: balance }` |
+| Reading values | `read_text: { selector: {...}, into: balance }`, `read_list: { match: "R\\$", max: 5, into: entries }` (`${entries}` renders one per line; `${entries.size}`, `${entries.0}`) |
+| Targets (self-healing) | `click: { target: { intent: "send the message", role: button, hints: { content_description: "Send" }, region: bottom-right } }` — exact hints first, then ranking; refuses to guess (`E_LOW_CONFIDENCE`) |
 | Result | `return: "Balance ${balance|mask}"` |
 
 The engine enforces global limits (actions, steps, call depth, duration) that a workflow cannot override, and returns structured error codes (`E_NOT_FOUND`, `E_TIMEOUT`, `E_VERIFY_FAILED`, …). Recursive flows and bad templates are rejected before the run starts. See [`examples/calculator_flows_v2.yaml`](examples/calculator_flows_v2.yaml).

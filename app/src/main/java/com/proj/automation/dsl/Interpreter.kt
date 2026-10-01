@@ -178,7 +178,7 @@ class Interpreter(
         }
         if (result.success) {
             (step.parameters["into"] as? String)?.takeIf { it.isNotBlank() }?.let { name ->
-                scope[name] = result.details["value"]?.toString()
+                scope[name] = result.details["value"]?.let { if (it is List<*>) it.map(Any?::toString) else it.toString() }
             }
         }
     }
