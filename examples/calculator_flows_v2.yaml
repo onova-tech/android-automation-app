@@ -1,0 +1,25 @@
+# DSL v2 example: the calculator demo written with a reusable flow,
+# variables, a fallback and a return value. v1 workflows still run unchanged.
+name: Calculator - Add with a flow
+params:
+  a: { default: "2" }
+  b: { default: "3" }
+
+flows:
+  press:
+    params: { key: {} }
+    steps:
+      - click:
+          selector: { text: "${key}" }
+          retries: 3
+
+steps:
+  - first_that_works:
+      - launch_app: { package: com.google.android.calculator }
+      - launch_app: { package: com.android.calculator2 }
+  - wait_for: { selector: { text: "${a}" }, timeout: 5000 }
+  - call: { flow: press, with: { key: "${a}" } }
+  - call: { flow: press, with: { key: "+" } }
+  - call: { flow: press, with: { key: "${b}" } }
+  - call: { flow: press, with: { key: "=" } }
+  - return: "Pressed ${a} + ${b}"

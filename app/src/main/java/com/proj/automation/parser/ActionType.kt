@@ -13,7 +13,8 @@ enum class ActionType(val yamlValue: String) {
     BACK("back"),
     HOME("home"),
     SCROLL("scroll"),
-    LOG("log");
+    LOG("log"),
+    READ_TEXT("read_text");
 
     companion object {
         /** Resolve a YAML key string to its ActionType, throwing if unknown */

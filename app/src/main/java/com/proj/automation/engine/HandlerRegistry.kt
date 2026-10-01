@@ -17,6 +17,7 @@ fun buildHandlerRegistry(): Map<ActionType, ActionHandler> {
         ActionType.BACK to BackHandler(),
         ActionType.HOME to HomeHandler(),
         ActionType.SCROLL to ScrollHandler(),
-        ActionType.LOG to LogHandler()
+        ActionType.LOG to LogHandler(),
+        ActionType.READ_TEXT to ReadTextHandler()
     )
 }

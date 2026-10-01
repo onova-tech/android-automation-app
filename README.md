@@ -85,6 +85,25 @@ Expected result: Calculator displays "5"
 | Home | `home` | System home navigation |
 | Scroll | `scroll` | Scrolls a scrollable node |
 | Log | `log` | Emits log message to execution log |
+| Read text | `read_text` | Reads an element's text (or content description) into a variable with `into` |
+
+## DSL v2 (control flow and variables)
+
+Every v1 workflow above still runs unchanged. v2 adds:
+
+| Construct | Example |
+|-----------|---------|
+| Parameters and variables | `params: { to: {}, text: { default: "hi" } }`, `set: { url: "https://wa.me/${to}" }` |
+| Templates with filters | `"${text|urlencode}"`, filters: `urlencode`, `upper`, `lower`, `trim`, `mask` |
+| Conditions | `if: { exists: { text: "OK" }, then: [...], else: [...] }`; also `not_exists`, `equals`, `contains`, `is_set`, `not`, `all`, `any` |
+| Fallbacks | `first_that_works: [ ...alternatives... ]` |
+| Error handling | `try: { do: [...], on_error: [...] }` (exposes `${error.code}`, `${error.message}`) |
+| Reusable flows | `flows: { press: { params: { key: {} }, steps: [...] } }` and `call: { flow: press, with: { key: "2" }, into: var }` |
+| Verification | `expect:` on any action (a post-condition), `assert:` as a step |
+| Reading values | `read_text: { selector: {...}, into: balance }` |
+| Result | `return: "Balance ${balance|mask}"` |
+
+The engine enforces global limits (actions, steps, call depth, duration) that a workflow cannot override, and returns structured error codes (`E_NOT_FOUND`, `E_TIMEOUT`, `E_VERIFY_FAILED`, …). Recursive flows and bad templates are rejected before the run starts. See [`examples/calculator_flows_v2.yaml`](examples/calculator_flows_v2.yaml).
 
 ## Selector Types
 
@@ -119,6 +138,7 @@ Tests cover:
 - Selector engine (strategy matching, null safety, fallback chain)
 - Execution engine (sequential execution, ABORT/CONTINUE, cancellation)
 - Error handler (retry, timeout, failure after exhaustion)
+- DSL v2: templates and filters, parser (control flow, flows, recursion and template checks), interpreter (branches, fallbacks, try, flow scopes, `expect`, limits, cancellation)
 
 ## Project Structure
 
@@ -129,6 +149,11 @@ app/src/main/java/com/proj/automation/
 ├── accessibility/
 │   ├── AutomationBridge.kt          — Bridge interface
 │   └── AutomationService.kt         — AccessibilityService implementation
+├── dsl/
+│   ├── Ast.kt                       — DSL v2 syntax tree (nodes, conditions, flows)
+│   ├── DslParser.kt                 — v2 parser (accepts v1 workflows)
+│   ├── Interpreter.kt               — Control flow, variables, limits, post-conditions
+│   └── Templates.kt                 — ${var|filter} rendering and variable scopes
 ├── editor/
 │   └── WorkflowEditorScreen.kt      — YAML editor Compose screen
 ├── engine/

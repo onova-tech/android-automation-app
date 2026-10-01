@@ -9,6 +9,7 @@ data class StepResult(
     val success: Boolean,
     val durationMs: Long,
     val errorMessage: String? = null,
+    val errorCode: com.proj.automation.engine.ErrorCode? = null,
     val strategy: String? = null,
     val details: Map<String, Any?> = emptyMap()
 )

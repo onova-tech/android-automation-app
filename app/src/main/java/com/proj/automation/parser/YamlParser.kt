@@ -60,7 +60,22 @@ class YamlParser {
         }
     }
 
-    private fun parseStep(raw: Any?, stepIndex: Int): Step {
+    /** Loads a YAML document as a map, wrapping errors in [YamlParseException] */
+    internal fun loadDocument(yamlString: String): Map<String, Any?> {
+        val raw = try {
+            yaml.load<Any?>(StringReader(yamlString))
+        } catch (e: Exception) {
+            throw YamlParseException("YAML parse error: ${e.message}", line = 0, column = 0)
+        }
+        @Suppress("UNCHECKED_CAST")
+        return when (raw) {
+            null -> throw YamlParseException("Empty YAML document", line = 0, column = 0)
+            is Map<*, *> -> raw as Map<String, Any?>
+            else -> throw YamlParseException("Top level must be a mapping", line = 0, column = 0)
+        }
+    }
+
+    internal fun parseStep(raw: Any?, stepIndex: Int): Step {
         if (raw !is Map<*, *>) {
             throw YamlParseException(
                 message = "Step at index $stepIndex must be a mapping (key: value)",
@@ -114,7 +129,7 @@ class YamlParser {
         )
     }
 
-    private fun parseSelector(raw: Map<*, *>?): Selector? {
+    internal fun parseSelector(raw: Map<*, *>?): Selector? {
         if (raw == null) return null
         return when {
             "text" in raw -> Selector.ByText(raw["text"].toString())

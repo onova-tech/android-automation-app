@@ -21,8 +21,9 @@ import com.proj.automation.engine.ActionDispatcher
 import com.proj.automation.engine.ErrorHandler
 import com.proj.automation.engine.ExecutionEngine
 import com.proj.automation.engine.buildHandlerRegistry
-import com.proj.automation.engine.models.ExecutionResult
-import com.proj.automation.parser.YamlParser
+import com.proj.automation.dsl.DslParser
+import com.proj.automation.dsl.RunResult
+import com.proj.automation.dsl.RunStatus
 import com.proj.automation.service.EventBus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +68,7 @@ fun WorkflowEditorScreen() {
     var statusText by remember { mutableStateOf("Idle") }
 
     // Engine references (created once per composition)
-    val parser = remember { YamlParser() }
+    val parser = remember { DslParser() }
     val eventBus = remember { EventBus.default }
     val handlers = remember { buildHandlerRegistry() }
     val dispatcher = remember { ActionDispatcher(handlers) }
@@ -182,12 +183,11 @@ fun WorkflowEditorScreen() {
                             },
                             onResult = { result ->
                                 isRunning = false
-                                statusText = if (result.completedSuccessfully) {
-                                    "Completed: ${result.stepCount} steps"
-                                } else if (result.cancelled) {
-                                    "Cancelled"
-                                } else {
-                                    "Failed: ${result.failedSteps.size} step(s)"
+                                statusText = when (result.status) {
+                                    RunStatus.SUCCEEDED -> "Completed: ${result.steps.size} steps" +
+                                        (result.returnValue?.let { " → $it" } ?: "")
+                                    RunStatus.CANCELLED -> "Cancelled"
+                                    RunStatus.FAILED -> "Failed" + (result.errorCode?.let { " ($it)" } ?: "") + ": ${result.message ?: ""}"
                                 }
                             }
                         )
@@ -289,14 +289,14 @@ fun WorkflowEditorScreen() {
 
 private suspend fun executeWorkflow(
     engine: ExecutionEngine,
-    parser: YamlParser,
+    parser: DslParser,
     yamlText: String,
     onError: (String) -> Unit,
-    onResult: (ExecutionResult) -> Unit
+    onResult: (RunResult) -> Unit
 ) {
     try {
-        val workflow = parser.parse(yamlText)
-        val result = engine.execute(workflow)
+        val program = parser.parse(yamlText)
+        val result = engine.run(program)
         withContext(Dispatchers.Main) {
             onResult(result)
         }
@@ -307,15 +307,7 @@ private suspend fun executeWorkflow(
         val errorMsg = "Parse error: ${e.message}"
         withContext(Dispatchers.Main) {
             onError(errorMsg)
-            onResult(
-                ExecutionResult(
-                    workflowName = null,
-                    steps = mutableListOf(),
-                    completedSuccessfully = false,
-                    startTime = System.currentTimeMillis(),
-                    endTime = System.currentTimeMillis()
-                )
-            )
+            onResult(RunResult(RunStatus.FAILED, message = errorMsg))
             android.util.Log.e("WorkflowEditor", errorMsg, e)
         }
     }

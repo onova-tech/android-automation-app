@@ -2,6 +2,7 @@ package com.proj.automation.engine.actions
 
 import com.proj.automation.engine.ActionContext
 import com.proj.automation.engine.ActionHandler
+import com.proj.automation.engine.ErrorCode
 import com.proj.automation.engine.models.StepResult
 import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Selector
@@ -46,7 +47,8 @@ class WaitForHandler : ActionHandler {
         return StepResult(
             stepIndex = 0, action = actionType, success = false,
             durationMs = System.currentTimeMillis() - startTime,
-            errorMessage = "Timeout waiting for element after ${timeoutMs}ms"
+            errorMessage = "Timeout waiting for element after ${timeoutMs}ms",
+            errorCode = ErrorCode.E_TIMEOUT
         )
     }
 }

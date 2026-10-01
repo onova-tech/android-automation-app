@@ -36,6 +36,8 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 - **Profile B protocol first, on Android:** frame format, test vectors and a reference client on a spare Android phone. The dumbphone client is a port done only after Spike 8 picks hardware.
 - Reduce POC debt: real line numbers in parse errors, node recycling where applicable, `INTERNET` removed from the manifest.
 
+**Progress (branch `feature/engine-foundation`, 2026-10-01):** done — DSL v2 parser and interpreter (`dsl/`): `params`, `variables`, `${var|filter}` templates, `set`, `if`/`else`, `first_that_works`, `try`/`on_error`, `call` with flows, `assert`, `return`, `expect` post-conditions, `into` bindings, global run limits, structured error codes, `read_text`; the editor runs v2. Next — `target` with `intent` + hints, `read_list`, `scroll_until`, `exists`-based waits, then the plugin package host and the `agp` CLI.
+
 **Exit:** a real WhatsApp flow runs from a plugin package through a **local interface** (no SMS), with post-condition verification.
 
 ### Phase 3 — Channel gateway, SMS channel and base security

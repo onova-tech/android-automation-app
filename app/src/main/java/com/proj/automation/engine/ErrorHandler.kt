@@ -52,7 +52,8 @@ class ErrorHandler {
                     action = step.action,
                     success = false,
                     durationMs = System.currentTimeMillis() - stepStartTime,
-                    errorMessage = "Timeout after ${timeoutMs}ms"
+                    errorMessage = "Timeout after ${timeoutMs}ms",
+                    errorCode = ErrorCode.E_TIMEOUT
                 )
             lastResult = attemptResult
 

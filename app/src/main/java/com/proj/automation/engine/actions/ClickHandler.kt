@@ -2,6 +2,7 @@ package com.proj.automation.engine.actions
 
 import com.proj.automation.engine.ActionContext
 import com.proj.automation.engine.ActionHandler
+import com.proj.automation.engine.ErrorCode
 import com.proj.automation.engine.models.StepResult
 import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Selector
@@ -30,7 +31,8 @@ class ClickHandler : ActionHandler {
         ) ?: return StepResult(
             stepIndex = 0, action = actionType, success = false,
             durationMs = System.currentTimeMillis() - startTime,
-            errorMessage = "Element not found"
+            errorMessage = "Element not found",
+            errorCode = ErrorCode.E_NOT_FOUND
         )
 
         if (!context.automation.click(resolved)) {
