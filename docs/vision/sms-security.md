@@ -86,8 +86,8 @@ Designed for **typing on a numeric keypad (T9)**: short, no hard-to-type symbols
 | Device status | `STATUS #17-48291360` | 1 |
 | Read unread | `WA READ #18-90417725` | 2 |
 | Send message | `WA SEND maria: on my way #19-31658804` | 3 |
-| Balance | `ITAU BALANCE #20-77120956` | 4 |
-| Transfer *(not in v1)* | `ITAU TRANSFER 50 maria #21-…` → two-step confirmation | 5 |
+| Balance | `NU BALANCE #20-77120956` | 4 |
+| Transfer *(not in v1)* | `NU TRANSFER 50 maria #21-…` → two-step confirmation | 5 |
 | Stop everything | `STOP` | Always allowed (fails toward the safe side) |
 
 - **Aliases, not numbers:** `maria` is resolved from the local alias table. Ambiguity ⇒ the agent asks back (`Maria Silva or Maria Lima? Reply 1 or 2`).
@@ -139,7 +139,7 @@ If burning a code on every low-risk command is too costly, an **optional** `LOGI
 
 Policy is local data. **It cannot be changed by SMS or by a plugin.** Changing policy, aliases, beneficiaries or limits requires **admin mode on the device**. The plugin's declared category can only raise a skill's level above these floors ([plugins.md](plugins.md) section 9).
 
-## 6. Banking (first bank: Itaú)
+## 6. Banking (first bank: Nubank)
 
 ### 6.0 Scope of the first version (D7)
 
@@ -159,15 +159,26 @@ Controls for v1:
 
 ### 6.1 Technical and legal reality
 
-- **Feasibility is unknown.** We have not tested the Itaú app. Bank apps commonly detect accessibility services that are not assistive tools, mark screens as sensitive (`FLAG_SECURE`, and on Android 14+ sensitive accessibility data), or refuse to run. Spike 4 answers this **before** we design more.
-- **Things to check in the Itaú app (Spike 4):**
+- **Feasibility is partly known.** The read path passed on 2026-10-01 ([spike-04-nubank.md](spike-04-nubank.md)): balance and statement are exposed in the accessibility tree, and login uses the system device-credential prompt. Whether Nubank accepts **our** accessibility service, and whether the service can type the PIN, is still untested. I found no public source describing how Nubank reacts to accessibility services. Bank apps commonly detect accessibility services that are not assistive tools, mark screens as sensitive (`FLAG_SECURE`, and on Android 14+ sensitive accessibility data), or refuse to run. Spike 4 answers this **before** we design more.
+- **What is known about Nubank (public sources, plus Spike 4 where marked):**
+  - The app is built with **Flutter** and **server-driven UI (SDUI)**, so screens and their labels can change **without an app release**. That has two consequences: Flutter screens usually carry no `resource_id`, so hints rely on text and descriptions; and **the app version alone does not pin the UI**, so `tested_versions` is not a sufficient gate (see [plugins.md](plugins.md) section 10).
+  - Its own material describes a **4-digit password** to confirm transactions, **two-factor** for sensitive access, and **facial recognition with a liveness check** for higher-risk operations, which includes high-value Pix. A step that needs a face check is **not automatable**; the agent stops and reports `E_NEEDS_OWNER`, and we do not bypass it.
+  - **Spike 4:** login goes through the **system device-credential prompt** (`BiometricPrompt`, drawn by Samsung's `com.samsung.android.biometrics.app.setting`). It accepts the device PIN, pattern or password, or biometrics. The agent phone therefore needs a secure lock (D9: PIN), and the agent types that PIN into a **system** prompt. Plugins get a narrow `device_credential_prompt` capability for this step only.
+  - **Spike 4:** the tree is Flutter semantics: almost no `resource-id`, empty `text`, everything in `content-desc`. Balance appears in button descriptions; each statement entry is one node with description, `HH:MM · type` and amount (`+` on credits).
+  - **A possible fallback if the tree is not enough: a notification ledger.** Nubank pushes notifications for purchases and received Pix. A `NotificationListenerService` could keep a local log of those and answer `STATEMENT` from it. It would not give a live balance, would only cover what the owner enables in the app, and needs verification that the notifications carry amounts. It is an idea to evaluate, not a plan.
+  - Pix has **day and night limits that the customer sets in the app**. That is a useful bank-side limit for the later transfer phase.
+  - Banks in general are known to detect accessibility services and restrict access; this is a general pattern, not a finding about Nubank.
+  - **OCR is not an option for Nubank** (reported by the owner: its screens cannot be captured). The Nubank plugin therefore works **only** from the accessibility tree. If the tree does not expose what we need, there is **no fallback**, and the banking case fails.
+- **Things to check in the Nubank app (Spike 4):**
   1. Does it launch and stay usable with our accessibility service enabled?
   2. Does it show a warning, refuse, or log out?
-  3. Is its tree readable, or blank / `FLAG_SECURE`?
+  3. **Go/no-go gate: ✅ passed for balance and statement (2026-10-01, via `uiautomator`).** The keypad part does not apply: login uses the system credential prompt, not a Nubank keypad. Repeat through our own service on the agent phone.
   4. Which factors does it demand at login and **for each transfer** (password, device token, biometrics, face)? If a biometric or on-device token is required every time, that step is **not automatable** and we will not bypass it.
-  5. Does it bind the customer to a registered device, and would moving the login to the agent phone need a new registration?
+  5. Does it bind the customer to a registered device, and would moving the login to the agent phone need a new registration (possibly a face check by the owner)? How often does it ask to re-authenticate, and can that be done with the password alone?
+  8. **Answered (Spike 4):** login uses the **system** credential prompt. With a pattern the grid is a single node (not automatable without coordinate gestures); with a PIN the keys are expected to be labeled. **To confirm on the agent phone with a PIN.** The in-app 4-digit transaction password matters later, for transfers.
+  9. Do screens expose a usable accessibility (semantics) tree, given Flutter, and how stable are their labels from one day to the next?
   6. What limits does the bank enforce on its side (per-transfer, daily, night-time)? (Relevant later, for transfers.)
-  7. **Does it refuse to run, or lose features, when the device has no secure lock screen?** (See the lock-screen decision in section 8.)
+  7. ~~Does it refuse to run with no secure lock screen?~~ Moot: login itself requires the device credential (Spike 4).
 - **Bank terms and liability:** automating the app may violate its terms and could affect fraud-liability coverage. Repeated automated access might also trigger anti-fraud measures that lock the account. Check with the bank.
 - **Agent-device risk (D4):** to act on its own, the agent stores the bank password. **Whoever gets the phone, or controls it remotely, gets the account access it holds.** This is the owner's accepted trade-off; the controls below bound the damage.
 
@@ -179,7 +190,7 @@ Controls 1–4 are **enforced locally**, so they still hold if SMS authenticatio
 2. **Limits:** maximum per operation, per day, and number of transfers per day; allowed hours.
 3. **Two-step confirmation ("what you see is what you sign"):**
    ```
-   You   → ITAU TRANSFER 50 maria #21-55102938
+   You   → NU TRANSFER 50 maria #21-55102938
    Agent → CONFIRM: R$50.00 to MARIA S. (key ***.456-**). Reply: OK 7391 #<index>-<code>
    You   → OK 7391 #22-80417263
    ```
@@ -210,7 +221,7 @@ Controls 1–4 are **enforced locally**, so they still hold if SMS authenticatio
 | T2 | SIM swap of the dumbphone | Attacker sends/receives as you | Printed sheet; a static PIN would not be enough |
 | T3 | Replay of a captured SMS | Interception | One-time indices burned on use; time window |
 | T4 | SMS tampered with or read in transit | Carrier network | Two-step confirmation on data re-read by the agent; masked replies; codes not reusable |
-| T5 | Theft of the agent phone | Physical access | Local limits, beneficiary allowlist, Keystore, safe location, bank limits, optional operational account |
+| T5 | Theft of the agent phone (holds the Nubank password and its own PIN) | Physical access | Local limits, beneficiary allowlist, Keystore, safe location, bank limits, optional operational account |
 | T6 | Theft of the dumbphone | Physical access | Needs the sheet as well; `STOP` and physical revocation |
 | T7 | Malicious app on the agent device | Install/exploit | Dedicated device, no other apps, no browser, restricted sideloading |
 | T8 | Malicious text in received messages | Chat content tries to "command" the automation | Message = data, never command; Laya only sees UI attributes; output is always an enumerated option; OCR is region-filtered |
@@ -226,7 +237,7 @@ Controls 1–4 are **enforced locally**, so they still hold if SMS authenticatio
 
 ## 8. Security decisions
 
-1. **Lock screen (provisional, D9): None or Swipe.** A secure lock screen would leave the agent phone unable to recover after any reboot until a human types the PIN (see [README.md](README.md), "Unlock and reboots"), and automating a PIN on the lock screen is unreliable. The price is high physical exposure, so this choice only makes sense together with: a safe location, the read-only first scope (D7), the dedicated phone with no other data, and bank-side alerts on a channel the phone does not control. **Overturned if Spike 4 shows the Itaú app requires a secure lock screen.** Then the fallback is a PIN with manual recovery after reboots, and no automatic unlock.
+1. **Lock screen (decided, D9): secure PIN.** Spike 4 showed Nubank logs in only with the device credential or biometrics, so "no lock" is not possible. Consequences: the device PIN is a stored secret typed by the agent (on the lock screen and on the credential prompt); after any reboot a human must unlock once; a `directBootAware` SMS receiver should reply "agent restarted, needs unlock" so the owner knows. The phone's physical location and the read-only first scope are the main limits on the damage if it is stolen while unlocked or with its PIN known.
 2. **Revocation:** `STOP` plus physical regeneration of the sheet (section 4.1).
 3. **Financial scope:** decided (D7): read-only first. Transfers are a later phase after a review.
 4. **Independent review:** external security review before enabling any transfer skill.

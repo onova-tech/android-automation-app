@@ -16,6 +16,7 @@
 | [action-catalog.md](action-catalog.md) | New actions, DSL v2 |
 | [sms-security.md](sms-security.md) | SMS channel, command protocol, printed one-time-code sheet, threat model, bank transfers |
 | [roadmap-risks.md](roadmap-risks.md) | Phases, validation spikes, risks, open decisions |
+| [spike-04-nubank.md](spike-04-nubank.md) | Spike 4 results so far: Nubank exposes balance and statement in the tree; login uses the system credential prompt |
 | [ADR-006](../adr/ADR-006-laya-decision-layer.md) | Proposed decision: Laya as local decision layer |
 | [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) | Proposed decision: declarative YAML plugins, intelligence in the base app |
 
@@ -65,15 +66,15 @@ The user carries only the dumbphone (calls and SMS). Everything that needs a sma
 
 | # | Decision | Value | Status |
 |---|----------|-------|--------|
-| D1 | Agent device | **Samsung Galaxy S20 FE 4G, model SM-G780G**, Android 13 (API 33), 6 GB RAM, running 24x7. As far as I know this model number uses the Snapdragon 865; to confirm in Spike 1 | Confirmed by owner |
-| D2 | First bank | **Itaú** | Feasibility unknown — validated in Spike 4 |
+| D1 | Agent device | **A second phone, model to be chosen** (Android 13+, at least 6 GB RAM), running 24x7. The owner's Galaxy S20 FE (SM-G780G, Snapdragon 865, 6 GB, patch 2024-09-01) is their **daily phone** and is used only for read-only tests | Changed on 2026-10-01 after Spike 4 |
+| D2 | First bank | **Nubank** (changed from Itaú on 2026-09-30) | Feasibility unknown — validated in Spike 4. See the Nubank notes in [sms-security.md](sms-security.md) section 6.1 |
 | D3 | One-time codes | **Printed sheet** (no token) | Confirmed; design in [sms-security.md](sms-security.md) |
 | D4 | Secrets | Bank password and any other secret are **stored on the agent device**, entered on the device when a plugin is installed | Confirmed; see the risk controls that bound the damage in [sms-security.md](sms-security.md) |
 | D5 | Extensibility | **Plugins = declarative YAML files**; all logic (interpreter, resolver, policy, auth, ML) is in the base app | Confirmed; see [plugins.md](plugins.md) and ADR-007 |
 | D6 | Documentation language | English | Done |
 | D7 | First banking scope | **Read-only: balance and statement.** No transfer skill in the first version | Confirmed by owner |
 | D8 | WhatsApp account | A **dedicated number** used only for this automation, on a device where the main account never ran. It is the **same number** that receives the SMS commands, so the command number is known to everyone the WhatsApp account talks to (see T17 in [sms-security.md](sms-security.md)) | Confirmed by owner |
-| D9 | Lock screen | **Provisional: no secure lock (None or Swipe)**, plus a safe location. Pending Spike 4 (does the bank app require a secure lock?) | Provisional; rationale in the provisioning section and in [sms-security.md](sms-security.md) |
+| D9 | Lock screen | **Secure PIN lock on the agent phone** (not a pattern). Nubank login requires the device credential, so "no lock" is not an option. The agent types the PIN into the system prompt from a stored secret; after a reboot it needs a human to unlock it | Decided on 2026-10-01 from [spike-04-nubank.md](spike-04-nubank.md); typing the PIN through our service is still untested |
 
 ---
 
@@ -214,7 +215,7 @@ Decision points:
 
 ## 8. Agent device provisioning (24x7)
 
-Baseline: **Galaxy S20 FE, Android 13, 6 GB RAM.** 6 GB is enough for the ~650 MB int8 Laya model when it is loaded on demand alongside the target apps (to be measured in Spike 1).
+Baseline: **a second phone, Android 13+, at least 6 GB RAM** (model to be chosen; the notes below assume a Samsung with One UI, like the S20 FE used for tests). 6 GB is enough for the ~650 MB int8 Laya model when it is loaded on demand alongside the target apps (to be measured in Spike 1).
 
 | Area | Recommendation |
 |------|----------------|
@@ -222,27 +223,26 @@ Baseline: **Galaxy S20 FE, Android 13, 6 GB RAM.** 6 GB is enough for the ~650 M
 | Sideloading | Android 13 blocks accessibility, notification-listener (and possibly SMS) permissions for sideloaded apps until you open **App info → ⋮ → Allow restricted settings** |
 | Updates | Turn off OS and app auto-updates. Stay on Android 13 (later versions tighten accessibility and sensitive-data rules). Update target apps deliberately, then re-validate the plugin |
 | Battery (Samsung One UI) | Menu names vary slightly by One UI version. In Battery settings: turn off *Put unused apps to sleep* and *Auto-disable unused apps*, add the app to *Never sleeping apps*, and turn off *Adaptive battery*. In Device care → Auto optimization: **turn off *Auto restart*** (a scheduled reboot matters, see *Unlock and reboots*). Keep the phone on the charger and, if a *Protect battery* option (about 85% cap) exists, enable it to reduce battery swelling |
-| Screen | The S20 FE has an **AMOLED** panel, so do not keep the screen on 24x7 (burn-in). Keep it **off between jobs**; the agent wakes it for each job and the screen must be on for UI automation (the tree and screenshots are unavailable while it is off). Turn off Always On Display |
+| Screen | Samsung phones like the S20 FE usually have an **AMOLED** panel, so do not keep the screen on 24x7 (burn-in). Keep it **off between jobs**; the agent wakes it for each job and the screen must be on for UI automation (the tree and screenshots are unavailable while it is off). Turn off Always On Display |
 | Network | Wi-Fi always on with sleep policy set to never; SIM with SMS plan; consider mobile data as fallback |
 | Recovery | The service must restart itself after crashes and reboots (boot receiver + watchdog). There is no remote reboot without root |
-| Physical security | A place only the owner can reach. The device holds a bank password (D4), so treat it like a wallet |
-| Unlock and reboots | See below. Provisional choice: lock set to **None or Swipe** |
+| Physical security | A place only the owner can reach. The device holds the Nubank password **and its own unlock PIN** (D4, D9), so treat it like a wallet |
+| Unlock and reboots | See below. Decided: **secure PIN lock** (D9) |
 
 ### Unlock and reboots (why the lock screen matters here)
 
-With a **secure** lock screen (PIN, pattern, password), Android keeps app data encrypted after every reboot until the PIN is typed once. A power cut, crash or system update would leave the agent phone deaf (no SMS handling, no automation) until someone enters the PIN. With **None** or **Swipe**, the phone recovers by itself.
+With a **secure** lock screen (PIN, pattern, password), Android keeps app data encrypted after every reboot until the credential is entered once. A power cut, crash or system update leaves the agent phone deaf (no SMS handling, no automation) until someone unlocks it. With **None** or **Swipe**, the phone recovers by itself.
 
-| Option | Autonomous after a reboot? | Can the agent wake and use the screen? | Exposure if the phone is stolen |
-|--------|----------------------------|----------------------------------------|---------------------------------|
-| **None / Swipe** (provisional choice) | Yes | Yes (a swipe gesture unlocks) | High: anyone can use the phone |
-| PIN or password | **No**, needs a human after every reboot | Only if the PIN is stored and typed automatically, which is unreliable on lock screens | Lower |
+Spike 4 showed that **Nubank logs in only with the device credential or biometrics**, so the agent phone must have a secure lock. The decision (D9) is:
 
-Two things can overturn the provisional choice:
+| Item | Decision |
+|------|----------|
+| Lock type | **PIN**, not a pattern. The pattern grid is one accessibility node with no cells; a PIN pad is likely to expose labeled keys (to confirm on the agent phone) |
+| Unlocking for jobs | The agent wakes the screen and types the PIN from a stored secret (`type_secret`, `keypad` mode), on the lock screen and on Nubank's credential prompt |
+| After a reboot | A human must unlock once. Mitigations: *Auto restart* off, stable power (charger + ideally a small UPS), and a `directBootAware` SMS receiver that replies "agent restarted, needs unlock" before the first unlock |
+| Exposure | The PIN that protects the phone is stored on the phone. Anyone who can use the unlocked phone can do what the agent can. The read-only first scope and the physical location are the real limits |
 
-- **The bank app may require a secure lock screen** (many do). If Itaú refuses to run without one, Spike 4 will show it, and the phone would need a PIN and manual recovery after reboots.
-- **Physical exposure.** With no lock, the phone's safety is the room it sits in, which is why the local limits and the read-only first scope matter.
-
-> **Handset support status:** as far as I know, Samsung's official updates for the S20 FE have ended or are near their end, with Android 13 likely its last major version. Check Settings → About phone → Software information → Android security patch level. The owner's phone was at the **2024-05-01** patch level on 2026-09-30 (about 17 months old); see the open item in [roadmap-risks.md](roadmap-risks.md). An unpatched phone that stores a bank password is a real risk. It is mitigated by dedicating the phone (no browser, no other apps, no personal accounts) and by the read-only first scope. The variant is SM-G780G with 6 GB (confirmed by the owner); the chipset changes the Laya latency in Spike 1.
+> **Choosing the agent phone:** prefer a model that still receives security updates. A phone that stores a bank password and its own PIN should not be years behind on patches. For reference, the S20 FE tested in Spike 4 was at the 2024-09-01 patch level (read over adb on 2026-10-01), and Samsung's updates for it have ended or are near their end. A dedicated phone with no browser, no other apps and no personal accounts reduces, but does not remove, the risk of an unpatched device.
 
 ---
 

@@ -121,7 +121,7 @@ The resolver is the same for both sources; only candidate extraction differs.
 
 OCR path details:
 
-- Screenshot by `takeScreenshot` (API 30+). Windows with `FLAG_SECURE` return blank or an error, so this path **does not cover secure screens**, which include many bank screens.
+- Screenshot by `takeScreenshot` (API 30+). Windows with `FLAG_SECURE` return blank or an error, so this path **does not cover secure screens**, which include many bank screens. **The owner reports that OCR is not usable on Nubank**, so Nubank is **tree-only**: no screenshot, no OCR, no coordinate taps. Its plugin declares `candidates: tree_only` ([plugins.md](plugins.md)).
 - Each OCR block becomes a candidate with text **and region** (`region=bottom-right`, neighbors); loose text is not enough to tell two "Send" buttons apart.
 - OCR errors ("Send" read as "S3nd") propagate into the decision. Add simulated OCR noise to the training examples.
 - **Filter by region before building the document** (bottom bar, header, button areas). Never include the message area, or an attacker's chat text reaches the model (section 8).

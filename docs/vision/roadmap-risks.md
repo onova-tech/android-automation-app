@@ -13,12 +13,12 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 | # | Question | How to validate | Decision criterion |
 |---|----------|-----------------|--------------------|
-| **1** | Does the Galaxy S20 FE (Android 13, 6 GB) handle the model (RAM, disk, battery, heat)? | Run the int8 `laya-multilingual` through ONNX Runtime on the real handset while WhatsApp and the bank app are in the background. Record the chipset variant (Exynos 4G or Snapdragon 5G) | Latency per decision, peak RAM, drain. If unfeasible ⇒ heuristic baseline only |
+| **1** | Does a 6 GB Android 13 phone handle the model (RAM, disk, battery, heat)? The S20 FE (Snapdragon 865, confirmed) can serve as a proxy until the agent phone is chosen | Run the int8 `laya-multilingual` through ONNX Runtime on the real handset while WhatsApp and the bank app are in the background. Record the chipset variant (Exynos 4G or Snapdragon 5G) | Latency per decision, peak RAM, drain. If unfeasible ⇒ heuristic baseline only |
 | **2** | Does Laya really improve resolution? Does it generalize to new intent wording? | Golden set from real WhatsApp/Telegram screens + small fine-tune; compare with the heuristic ranker; test unseen plugin intents; compare tree vs. OCR candidates | Measurable gain over the baseline. If none ⇒ Laya becomes optional |
 | **3** | Can we receive and send SMS and keep the service alive for days on One UI (Android 13)? | Minimal app with `SMS_RECEIVED`, `SmsManager`, resilient service, "Allow restricted settings", Samsung battery settings from [README.md](README.md) section 8 | Reliability over ≥ 72 h; behavior under Doze and Samsung's background limits |
-| **4** | **Does the Itaú app work with an accessibility service enabled?** | Read-only tests on a test device (checklist in [sms-security.md](sms-security.md) section 6.1) | If it refuses or blocks ⇒ **the banking case is out of scope** (read-only too). Also record whether it requires a secure lock screen |
+| **4** | **Does the Nubank app work with an accessibility service enabled?** — **partial: read gate passed (2026-10-01)**, see [spike-04-nubank.md](spike-04-nubank.md) | Done: tree dumps on the owner's phone. Remaining, on the agent phone: our service enabled, PIN typed into the system credential prompt, re-authentication frequency, device registration | If Nubank refuses our service or the PIN cannot be typed ⇒ the banking case is out of scope (unless the notification-ledger fallback proves enough) |
 | **5** | Is `RemoteInput` on WhatsApp/Telegram notifications stable? | Proof of concept: reply through the notification | If yes, it is surface #2 (more robust than UI) |
-| **6** | Does a None/Swipe-locked S20 FE recover by itself after a reboot, and do wake-on-job cycles work? | Power-cut and reboot tests; repeated screen-off → wake → swipe-unlock → act cycles; charging 24x7 with the battery cap | Confirms or overturns the provisional lock decision (D9) and the charging setup |
+| **6** | Does the PIN-locked agent phone run unattended, and how does it behave after a reboot? | Repeated screen-off → wake → PIN unlock → act cycles; power-cut and reboot tests; a `directBootAware` receiver replying before first unlock; charging 24x7 with the battery cap | Confirms the PIN lock setup (D9) and the recovery procedure |
 | **7** | Can a declarative YAML plugin express a real WhatsApp flow with only the built-in actions? | Write the `whatsapp` plugin from [plugins.md](plugins.md) and run it in the prototype interpreter | Gaps found become new built-in actions, not plugin code |
 | **8** | Can a candidate dumbphone send **and receive** binary SMS from our own program? | Buy or borrow one candidate. Write a minimal MIDlet: send a data SMS to a port, listen on a port, test push registration with the app closed, test the crypto library and speed, test loading the app without a store | Send, receive (also with the app closed), and crypto all work ⇒ Profile B is available on that model. Otherwise stay on Profile A or use a locked-down Android phone |
 
@@ -74,15 +74,16 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 | Risk | Prob. | Impact | Mitigation |
 |------|-------|--------|-----------|
 | Laya (new, third-party port) does not reach the needed accuracy | Medium | High | Spike 2; heuristic baseline; replaceable artifact |
-| The Itaú app blocks accessibility | Unknown | High (for the banking case) | Spike 4 early; read-only scope; operational account |
+| The Nubank app blocks accessibility, or exposes too little of its screens (no OCR fallback, since its windows cannot be captured) | Unknown | High (for the banking case) | Spike 4 early with the tree-only gate; read-only scope; notification-ledger fallback to evaluate; operational account |
 | Bank anti-fraud reacts to automated access | Medium | High | Low-volume tests; bank alerts; ask the bank |
 | WhatsApp account banned | Medium | Medium | Conscious decision; human-like pacing; limits; secondary number |
 | Target-app updates break plugins | High | Medium | Cache/self-healing; per-version validation; turn off auto-update of target apps |
 | No suitable Java ME dumbphone exists (or KaiOS-only phones are all that is available) | Medium | Medium | Profile A works on any phone; a locked-down Android phone can run Profile B; Spike 8 before buying in bulk |
 | Growing Android restrictions on accessibility (sensitive data, restricted settings) | Medium | High | Fixed Android 13 baseline; freeze OS updates on the agent |
-| Theft of the agent phone (bank password stored on it; provisional lock is None/Swipe) | Low | Critical (banking) | Safe location; read-only v1 (no money can move); bank-side alerts; later, local limits and beneficiary allowlist; optional operational account |
-| S20 FE no longer receives security patches | High | Medium–High | Dedicated phone, no browser or other apps, read-only v1; verify the patch level; consider replacing the handset before transfers |
-| With a secure lock screen, a reboot leaves the agent unresponsive until the PIN is typed | Medium | Medium | Provisional None/Swipe lock; *Auto restart* off; Spike 6 |
+| Theft of the agent phone (Nubank password and its own PIN stored on it) | Low | Critical (banking) | Safe location; read-only v1 (no money can move); bank-side alerts; later, local limits and beneficiary allowlist; optional operational account |
+| The agent phone is out of security updates | Medium | Medium–High | Choose a model still receiving updates; dedicated phone, no browser or other apps, read-only v1 |
+| A reboot leaves the agent unresponsive until a human unlocks it (secure lock is required by Nubank) | **High** | Medium | *Auto restart* off; stable power; `directBootAware` receiver that tells the owner by SMS; Spike 6 |
+| The PIN cannot be typed into the system credential prompt by our service | Unknown | High (for banking) | Test first on the agent phone; no workaround that bypasses the prompt |
 | AMOLED burn-in if the screen stays on | Medium | Low | Screen off between jobs; Always On Display off |
 | 24x7 charging: battery swelling, heat, OEM background kills | Medium | Medium | Charge limit, battery whitelist, watchdog; test on the chosen handset (Spike 6) |
 | Malicious or buggy plugin | Low | High | Capability scoping, use-only secrets, base-app risk floor, admin-mode install |
@@ -97,8 +98,8 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 | # | Decision | Value |
 |---|----------|-------|
-| 1 | Agent device | Samsung Galaxy S20 FE, Android 13, 6 GB RAM, 24x7 |
-| 2 | First bank | Itaú (feasibility pending Spike 4) |
+| 1 | Agent device | **A second phone, model to be chosen** (Android 13+, ≥ 6 GB). The S20 FE is the owner's daily phone, used only for read-only tests |
+| 2 | First bank | Nubank (changed from Itaú on 2026-09-30); read gate passed in Spike 4 |
 | 3 | One-time codes | Printed sheet |
 | 4 | Secrets | Stored on the device, entered at plugin install |
 | 5 | Extensibility | Declarative YAML plugins; intelligence in the base app |
@@ -106,17 +107,13 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 | 7 | First banking scope | Read-only: balance and statement |
 | 8 | WhatsApp account | Dedicated number, on a device where the main account never ran; **the same number receives the SMS commands** (T17) |
 
-### Provisional
-
-| # | Decision | Value | Overturned if |
-|---|----------|-------|---------------|
-| 9 | Lock screen | None or Swipe, safe location | Spike 4 shows the bank app needs a secure lock, or Spike 6 shows the wake/unlock cycle is unreliable |
+| 9 | Lock screen | **Secure PIN** on the agent phone (Nubank requires the device credential); the agent types it; a human unlocks after reboots |
 
 ### Still open
 
 | # | Decision | Impact |
 |---|----------|--------|
-| 1 | **S20 FE software update:** SM-G780G, 6 GB, patch level 2024-05-01. To do: check Settings → Software update, and **before installing, confirm whether it is only a security patch or a major OS upgrade** (Samsung updates generally cannot be rolled back) | Keeps the Android 13 baseline; how far to trust an out-of-date phone |
+| 1 | **Which phone will be the agent?** Prefer a model that still gets security updates; Android 13+, ≥ 6 GB RAM, ideally a PIN lock screen with labeled keys | Blocks Spikes 3, 6 and the rest of Spike 4 |
 | 2 | **Languages:** Portuguese only, or also English/Spanish? | Laya variant and training data |
 | 3 | **Icon-only elements:** invest in local OCR/UI-grounding? | Outside Laya's reach |
 | 4 | **Single user or several?** | Complexity of authentication and policy |
@@ -139,7 +136,7 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 ## 6. Immediate next steps
 
-1. Answer open items 1 and 8 above (they affect Spikes 1 and 3).
-2. Run Spikes 1, 3, 4 and 6 on the S20 FE (they need no production code).
+1. Choose the agent phone (open item 1) and the dumbphone (open item 8).
+2. On the agent phone, finish Spike 4 (our service + PIN in the system prompt), then Spikes 3 and 6. Spike 1 can run on the S20 FE now (read-only performance test, no secrets).
 3. Approve [ADR-006](../adr/ADR-006-laya-decision-layer.md) and [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md), or adjust them with spike results.
 4. Only then break Phase 2 into tickets.

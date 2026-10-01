@@ -122,10 +122,11 @@ Package name and identifiers below are placeholders. The real ones come from ins
 ```yaml
 schema: 1
 plugin: { id: bank, name: "Bank", version: 0.1.0, category: financial, scope: read_only }
-app: { package: com.example.bank, tested_versions: ["1.2.3"] }
+app: { package: com.example.bank, tested_versions: ["1.2.3"], candidates: tree_only }   # secure windows: no screenshot/OCR
 capabilities:
   ui_automation: [com.example.bank]
   read_screen:   [com.example.bank]
+  screenshot:    false              # never captures this app's screen
   secrets: [password]
   sms_reply: true
 secrets:
@@ -180,6 +181,8 @@ Every action is checked against the plugin's approved capabilities:
 - `ui_automation` / `read_screen` restrict which packages the plugin may operate on. If the foreground app is not in the list, the step fails.
 - `deeplinks` is an allowlist of URL patterns for `open_url`.
 - `notifications`, `contacts_lookup` and `sms_reply` are explicit grants.
+- `device_credential_prompt` lets a plugin act on the **system** credential prompt (the device PIN screen an app like Nubank opens through `BiometricPrompt`), and only to type the device PIN with `type_secret`. Nothing else in system UI is reachable. Granted per plugin at install, and listed in the install summary.
+- `screenshot` (and therefore OCR) is a separate grant, **denied by default**. A plugin with `candidates: tree_only` can never use it, and the base app does not capture windows of an app that declared it.
 - Anything not declared is denied. Capabilities are shown to the owner at install (section 10), and an update that adds a capability requires re-approval.
 
 ## 9. Risk floor and limits belong to the base app
@@ -212,6 +215,8 @@ Limits (per-operation and daily amounts, allowed hours, beneficiary list, rate l
 **Disable / uninstall:** immediate; uninstall wipes secrets, cache entries and pending jobs.
 
 **Version drift:** when the target app's version changes, financial skills are disabled until the owner re-validates the plugin (a recorded dry run passes, or the version is added to `tested_versions`).
+
+**Server-driven UIs (for example Nubank):** the app version does not pin what the screen looks like, because the server can change screens and labels at any time. For such plugins the base app also runs a **screen-signal check** before a financial skill: the plugin's `screens:` signals (expected labels and elements) must match on the screens it reaches, or the skill aborts with `E_APP_VERSION`/`E_NOT_FOUND` and reports that the UI changed. Read-only skills that fail this check stop rather than guess.
 
 ## 11. Threats specific to plugins
 

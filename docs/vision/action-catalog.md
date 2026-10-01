@@ -25,15 +25,15 @@ Priorities: **P0** = needed for the first real use case (WhatsApp over SMS); **P
 | `press_enter` | `ACTION_IME_ENTER` (API 30+) | P1 | Send by keyboard when there is no button |
 | `open_recents` / `open_notifications` / `open_quick_settings` | `performGlobalAction` | P2 | |
 | `wake_screen` / `keep_awake` | `PowerManager` `WakeLock` / window flags | **P0** | The agent phone keeps its AMOLED screen **off between jobs** and wakes it for each one |
-| `unlock` | `dispatchGesture` swipe | **P0** | Works only when the lock is None or Swipe (provisional decision D9). No PIN entry |
-| `lock_screen` | `GLOBAL_ACTION_LOCK_SCREEN` (API 28+) | P2 | Rarely useful with a None/Swipe lock; kept for the PIN fallback |
+| `unlock` | Wake + `type_secret` (`keypad` mode) on the lock screen | **P0** | The agent phone uses a **PIN** lock (D9). Types the stored device PIN on the keyguard; fails closed if the keys are not labeled. Cannot run before the first unlock after a reboot |
+| `lock_screen` | `GLOBAL_ACTION_LOCK_SCREEN` (API 28+) | **P1** | Re-lock the agent phone after each job, so it never sits unlocked between jobs |
 
 ### 1.2 Data entry
 
 | Action | Mechanism | Prio | Notes |
 |--------|-----------|------|-------|
 | `type` (evolve) | `ACTION_SET_TEXT` | **P0** | Add `clear_first`, `append`, and locating the field by target (today it grabs the first editable) |
-| **`type_secret`** | `ACTION_SET_TEXT` with a Keystore-backed value | **P0** | The **only** consumer of a secret. Value never enters variables, logs, SMS or URLs. See [plugins.md](plugins.md) |
+| **`type_secret`** | `ACTION_SET_TEXT`, or clicking keypad buttons | **P0** | The **only** consumer of a secret. Two modes: `field` sets text in an input; `keypad` clicks digit buttons resolved by their labels, for PIN pads (a 4-digit password on a custom keypad, as a bank app may use). `keypad` fails closed if the buttons have no readable label. The value never enters variables, logs, SMS or URLs. See [plugins.md](plugins.md) |
 | `paste` | `ACTION_PASTE` + clipboard | P1 | Works around fields that reject `SET_TEXT`. Never used for secrets |
 | `select_option` | Click + resolution in a list/dropdown | P1 | Spinner, date picker |
 | `toggle` | Checks state (`isChecked`) before clicking | P1 | Idempotent: "turn on" never turns it off |
