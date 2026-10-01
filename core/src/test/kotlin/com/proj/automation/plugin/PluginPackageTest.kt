@@ -104,8 +104,19 @@ class PluginPackageTest {
 
     @Test
     fun `rejects reserved files with a clear message`() {
-        val e = assertThrows<PluginPackageException> { PackageReader.read(zip(mapOf("interrupts.yaml" to "x".toByteArray()))) }
+        val e = assertThrows<PluginPackageException> { PackageReader.read(zip(mapOf("i18n/pt.yaml" to "x".toByteArray()))) }
         assertTrue(e.message!!.contains("reserved"))
+    }
+
+    @Test
+    fun `interrupt rules load into every skill, but never in financial plugins`() {
+        val rule = "rules:\n  - { name: dlg, when: { exists: { text: OK } }, do: [ { click: { target: { hints: { text: OK } } } } ] }"
+        val plugin = PluginLoader.load(pkg(minimal + ("interrupts.yaml" to rule)))
+        assertEquals(listOf("dlg"), plugin.interruptRules)
+        assertEquals("dlg", plugin.skills.getValue("ping").program.interrupts.single().name)
+        assertTrue(plugin.installSummary().contains("Handles unexpected dialogs: dlg"))
+        val financial = manifest.replace("category: utility", "category: financial")
+        fails(minimal + mapOf("plugin.yaml" to financial, "interrupts.yaml" to rule), "not allowed in a financial plugin")
     }
 
     @Test

@@ -49,10 +49,23 @@ data class Flow(
     val body: List<Node>
 )
 
+/**
+ * Handles an unexpected dialog (permission, rating prompt, ad) whenever it shows up: before each
+ * screen action, and once more after an action fails because its element was missing.
+ */
+data class InterruptRule(
+    val name: String,
+    val condition: Condition,
+    /** Only `click`, `back`, `wait`, `wait_for` and `log` (checked by the parser) */
+    val body: List<Node>,
+    val maxPerRun: Int
+)
+
 data class Program(
     val name: String? = null,
     val description: String? = null,
     val params: Map<String, ParamSpec> = emptyMap(),
     val flows: Map<String, Flow> = emptyMap(),
-    val body: List<Node> = emptyList()
+    val body: List<Node> = emptyList(),
+    val interrupts: List<InterruptRule> = emptyList()
 )

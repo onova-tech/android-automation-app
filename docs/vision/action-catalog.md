@@ -80,7 +80,7 @@ Priorities: **P0** = needed for the first real use case (WhatsApp over SMS); **P
 | `foreach` | P1 | Iterate over a `read_list` result |
 | `repeat_until` | P1 | Mandatory iteration limit and timeout |
 | `call` (sub-skill) | P1 | Reuse: `ensure_app_open(pkg)`, `go_to_chat(contact)` |
-| `interrupt_rules` | **P1** | Global rules that run during any wait or polling (see 2.2) |
+| `interrupts.yaml` rules | done | Handle unexpected dialogs before screen actions (see 2.2) |
 | `on_failure: retry(n, ms)` | exists | Already fixed in `ErrorHandler` |
 
 ## 2. DSL v2 — intent, hints and verification
@@ -108,17 +108,24 @@ Targets can also be declared once in a plugin's `targets:` section and reference
 
 ### 2.2 Interrupt rules
 
-Any app shows dialogs that were not in the script (permissions, "rate this app", update, ads). Global rules handle them during waits and polling:
+Any app shows dialogs that were not in the script (permissions, "what's new", rating prompts, ads). A plugin handles them with rules in `interrupts.yaml`:
 
 ```yaml
-interrupt_rules:
-  - when: { screen_is: permission_dialog }
-    do:   { click: { intent: "allow" } }
-  - when: { screen_is: rating_prompt }
-    do:   { click: { intent: "not now" } }
+rules:
+  - name: whats_new_dialog
+    when: { exists: { target: { hints: { text: "Agora não" }, role: button } } }
+    do:
+      - click: { target: { hints: { text: "Agora não" }, role: button } }
+    max_per_run: 2        # optional, 1–10, default 2
 ```
 
-Interrupt rules are scoped to the plugin's package and **never** cover financial or security screens (see section 5).
+How they run (implemented in `dsl/Interpreter.kt`):
+
+- Before every action that looks at the screen (`click`, `type`, `read_text`, `read_list`, `wait_for`, `scroll`, `scroll_until`), the first rule whose `when` holds runs; up to three rules can chain (a dialog after a dialog).
+- If such an action fails with `E_NOT_FOUND`, `E_LOW_CONFIDENCE` or `E_TIMEOUT` and a rule then fires, the action is tried once more.
+- Rule steps are limited to `click`, `back`, `wait`, `wait_for` and `log` (plus `sequence`, `if`, `first_that_works`). No typing, links, apps or flow calls.
+- Rules do not see the skill's variables; a failing rule step does not fail the skill; each rule fires at most `max_per_run` times per run.
+- Rules run under the plugin's capabilities like everything else, and **financial plugins cannot have them** (they must never click on financial or security screens).
 
 ## 3. Skills live in plugins
 

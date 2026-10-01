@@ -6,6 +6,7 @@ import com.proj.automation.engine.CancelledException
 import com.proj.automation.engine.ErrorCode
 import com.proj.automation.engine.ErrorHandler
 import com.proj.automation.engine.models.StepResult
+import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.OnFailurePolicy
 import com.proj.automation.service.EventBus
 import kotlin.coroutines.cancellation.CancellationException
@@ -38,6 +39,10 @@ class Interpreter(
     ) {
         val steps = mutableListOf<StepResult>()
         var nodes = 0
+        /** Times each interrupt rule fired in this run */
+        val fired = mutableMapOf<String, Int>()
+        /** True while an interrupt rule runs, so rules never trigger each other */
+        var inInterrupt = false
     }
 
     /**
@@ -133,25 +138,33 @@ class Interpreter(
     private suspend fun action(node: Node.Action, scope: Scope, run: Run) {
         if (run.steps.size >= limits.maxActions) throw Abort(ErrorCode.E_BUDGET, "More than ${limits.maxActions} actions")
         val step = node.step.rendered(scope)
-        val index = run.steps.size
         run.guard?.let { guard ->
             val foreground = run.context.device.foregroundPackage()
             guard.check(step, foreground)?.let { reason -> throw Abort(ErrorCode.E_CAPABILITY, "Not permitted: $reason") }
         }
 
-        var result = try {
+        suspend fun attempt(): StepResult = try {
             errorHandler.executeWithPolicy(step, { ctx -> dispatcher.dispatch(step, ctx) }, run.context)
-                .copy(stepIndex = index)
         } catch (e: CancelledException) {
             throw e
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             StepResult(
-                stepIndex = index, action = step.action, success = false, durationMs = 0,
+                stepIndex = 0, action = step.action, success = false, durationMs = 0,
                 errorMessage = "Fatal error: ${e.message}", errorCode = ErrorCode.E_ACTION_FAILED
             )
         }
+
+        val onScreen = step.action in SCREEN_ACTIONS
+        if (onScreen) interrupts(run)
+        var result = attempt()
+        // A dialog may have hidden the element: if a rule handles one, try the action once more
+        if (!result.success && onScreen && result.errorCode in RETRY_AFTER_INTERRUPT && interrupts(run)) {
+            result = attempt()
+        }
+        val index = run.steps.size
+        result = result.copy(stepIndex = index)
 
         val expect = node.expect
         if (result.success && expect != null && !eval(expect, scope, run)) {
@@ -181,6 +194,34 @@ class Interpreter(
         }
     }
 
+    /**
+     * Runs the first interrupt rule whose condition holds, repeatedly (a dialog can follow
+     * another), up to [MAX_INTERRUPT_CHAIN] times. A failing rule step does not fail the run.
+     * @return true if any rule fired
+     */
+    private suspend fun interrupts(run: Run): Boolean {
+        val rules = run.program.interrupts
+        if (rules.isEmpty() || run.inInterrupt) return false
+        var fired = false
+        repeat(MAX_INTERRUPT_CHAIN) {
+            val ruleScope = Scope() // rules never see the skill's variables
+            val rule = rules.firstOrNull { (run.fired[it.name] ?: 0) < it.maxPerRun && eval(it.condition, ruleScope, run) }
+                ?: return fired
+            run.fired[rule.name] = (run.fired[rule.name] ?: 0) + 1
+            eventBus.publish(EventBus.Event.LogMessage("interrupt: ${rule.name}"))
+            run.inInterrupt = true
+            try {
+                exec(rule.body, ruleScope, run, depth = 0)
+            } catch (_: StepFailure) {
+                // the dialog may have closed by itself; carry on with the skill
+            } finally {
+                run.inInterrupt = false
+            }
+            fired = true
+        }
+        return fired
+    }
+
     private fun eval(condition: Condition, scope: Scope, run: Run): Boolean = when (condition) {
         is Condition.Exists -> {
             val target = condition.target.map { Templates.render(it, scope) }
@@ -193,6 +234,16 @@ class Interpreter(
         is Condition.Not -> !eval(condition.condition, scope, run)
         is Condition.All -> condition.conditions.all { eval(it, scope, run) }
         is Condition.AnyOf -> condition.conditions.any { eval(it, scope, run) }
+    }
+
+    private companion object {
+        /** Actions that look at the screen, before which interrupt rules are checked */
+        val SCREEN_ACTIONS = setOf(
+            ActionType.CLICK, ActionType.TYPE, ActionType.READ_TEXT, ActionType.READ_LIST,
+            ActionType.WAIT_FOR, ActionType.SCROLL, ActionType.SCROLL_UNTIL
+        )
+        val RETRY_AFTER_INTERRUPT = setOf(ErrorCode.E_NOT_FOUND, ErrorCode.E_LOW_CONFIDENCE, ErrorCode.E_TIMEOUT)
+        const val MAX_INTERRUPT_CHAIN = 3
     }
 
     /** Binds already-rendered [args] and defaults into [target]; missing required ones fail. */
