@@ -39,7 +39,7 @@ class ExecutionEngine(
     suspend fun run(program: Program, args: Map<String, String> = emptyMap(), guard: ActionGuard? = null): RunResult {
         val token = CancellationToken().also { cancellationToken = it }
         val port = device() ?: return RunResult(RunStatus.FAILED, ErrorCode.E_DEVICE, "No device available")
-        val context = ActionContext(port, eventBus, token, clock = clock, sleep = sleep)
+        val context = ActionContext(port, eventBus, token, clock = clock, sleep = sleep, canSee = { guard?.canSee(it) ?: true })
         return interpreter.run(program, args, context, guard)
     }
 

@@ -56,8 +56,8 @@ data class ReplayOutcome(
  * args: { phone: "5511999", text: "oi" }
  * start: home.xml                       # optional
  * transitions:                          # first match wins
- *   - { on: open_url, screen: chat.xml }
- *   - { on: click, label: "Enviar", screen: chat_sent.xml }
+ *   - { after: open_url, screen: chat.xml }
+ *   - { after: click, label: "Enviar", screen: chat_sent.xml }
  * expect:
  *   status: succeeded                   # succeeded | failed | cancelled
  *   error: E_NOT_FOUND                  # optional
@@ -86,7 +86,8 @@ object Replay {
         val transitions = (doc["transitions"] as? List<*>).orEmpty().mapIndexed { i, raw ->
             val t = raw as? Map<*, *> ?: fail("transitions[$i] must be a mapping")
             TransitionSpec(
-                on = t["on"]?.toString() ?: fail("transitions[$i].on is required"),
+                // `after`, not `on`: YAML 1.1 reads a bare `on` key as the boolean true
+                on = t["after"]?.toString() ?: fail("transitions[$i].after is required"),
                 label = t["label"]?.toString(),
                 screen = t["screen"]?.toString()
             )

@@ -163,6 +163,8 @@ object PluginLoader {
         )
     }
 
+    private val UI_ACTIONS = setOf(ActionType.CLICK, ActionType.TYPE, ActionType.SCROLL, ActionType.SCROLL_UNTIL)
+
     /**
      * Minimum risk level of every command (docs/vision/plugins.md section 9). A plugin can
      * declare a higher level per skill, never a lower one.
@@ -234,7 +236,7 @@ object PluginLoader {
                     if (step.action == ActionType.OPEN_URL && m.capabilities.deeplinks.isEmpty()) {
                         throw PluginPackageException("$where: open_url needs capabilities.deeplinks")
                     }
-                    if (step.action in CapabilityGuard.UI_ACTIONS && operable.isEmpty()) {
+                    if (step.action in UI_ACTIONS && operable.isEmpty()) {
                         throw PluginPackageException("$where: ${step.action.yamlValue} needs capabilities.ui_automation")
                     }
                 }

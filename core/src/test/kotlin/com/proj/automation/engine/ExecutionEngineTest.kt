@@ -72,12 +72,22 @@ class ExecutionEngineTest {
     @Test
     fun `skills run under the plugin's capabilities`() = runTest {
         val plugin = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries")).plugin
-        // the foreground app is unknown (no screen), so the first UI-reading action is refused
-        val result = engine.runSkill(plugin, "send", mapOf("phone" to "5511999", "text" to "hi"))
-        assertEquals(RunStatus.FAILED, result.status)
-        assertEquals(ErrorCode.E_CAPABILITY, result.errorCode)
-        // open_url to wa.me was allowed and dispatched before that
-        coVerify { dispatcher.dispatch(match { it.parameters["url"] == "https://wa.me/5511999?text=hi" }, any()) }
-        assertEquals(RunStatus.FAILED, engine.runSkill(plugin, "nope", emptyMap()).status)
+        val device = ScreenDevice(null)
+        val real = ExecutionEngine(
+            ActionDispatcher(buildHandlerRegistry()), ErrorHandler(), EventBus(), device = { device },
+            clock = { testScheduler.currentTime }
+        )
+        // nothing appears after the link is opened, so waiting for the chat times out
+        val result = real.runSkill(plugin, "send", mapOf("phone" to "5511999", "text" to "hi"))
+        assertEquals(ErrorCode.E_TIMEOUT, result.errorCode)
+        assertEquals(listOf("open_url:https://wa.me/5511999?text=hi"), device.interactions)
+        // a link outside the plugin's allowlist ends the run before anything happens
+        val outside = real.run(
+            DslParser().parse("steps:\n  - open_url: { url: \"https://evil.com\" }"),
+            guard = com.proj.automation.plugin.CapabilityGuard(plugin.manifest.capabilities)
+        )
+        assertEquals(ErrorCode.E_CAPABILITY, outside.errorCode)
+        assertEquals(1, device.interactions.size)
+        assertEquals(RunStatus.FAILED, real.runSkill(plugin, "nope", emptyMap()).status)
     }
 }

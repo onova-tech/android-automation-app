@@ -6,11 +6,17 @@ import com.proj.automation.parser.Step
 /** Checked by the interpreter before every action. Returns null to allow, or the reason to deny. */
 fun interface ActionGuard {
     fun check(step: Step, foregroundPackage: String?): String?
+
+    /** Whether the screen of [foregroundPackage] may be seen at all; unseen screens read as empty */
+    fun canSee(foregroundPackage: String?): Boolean = true
 }
 
 /**
  * Enforces a plugin's approved capabilities at run time (docs/vision/plugins.md section 8):
- * an action may only touch apps the owner approved, whatever the plugin's steps say.
+ *
+ * - the plugin is **blind** to apps it was not approved for: actions and conditions see an empty
+ *   screen there, so it can neither act on nor read them (including through `exists`/`screen_is`);
+ * - launching an app or opening a link outside the approved lists ends the run (`E_CAPABILITY`).
  */
 class CapabilityGuard(private val capabilities: Capabilities) : ActionGuard {
 
@@ -23,19 +29,13 @@ class CapabilityGuard(private val capabilities: Capabilities) : ActionGuard {
             val url = step.parameters["url"] as? String ?: ""
             if (capabilities.deeplinks.any { urlMatches(it, url) }) null else "open_url to a link not in capabilities.deeplinks"
         }
-        in UI_ACTIONS -> when {
-            foregroundPackage == null -> "no app on screen"
-            foregroundPackage in capabilities.uiAutomation -> null
-            else -> "'${step.action.yamlValue}' on '$foregroundPackage', which this plugin may not operate"
-        }
-        in READ_ACTIONS -> when {
-            foregroundPackage == null -> "no app on screen"
-            foregroundPackage in capabilities.uiAutomation || foregroundPackage in capabilities.readScreen -> null
-            else -> "'${step.action.yamlValue}' on '$foregroundPackage', which this plugin may not read"
-        }
-        // back, home, wait and log act on no app's content
+        // other actions only see the approved apps' screens (see canSee)
         else -> null
     }
+
+    override fun canSee(foregroundPackage: String?): Boolean =
+        foregroundPackage != null &&
+            (foregroundPackage in capabilities.uiAutomation || foregroundPackage in capabilities.readScreen)
 
     companion object {
         private val SCHEME_HOST = Regex("^[a-z][a-z0-9+.-]*://[^/*?#]+")
@@ -51,7 +51,5 @@ class CapabilityGuard(private val capabilities: Capabilities) : ActionGuard {
             return Regex(regex).matches(url)
         }
 
-        val UI_ACTIONS = setOf(ActionType.CLICK, ActionType.TYPE, ActionType.SCROLL, ActionType.SCROLL_UNTIL)
-        val READ_ACTIONS = setOf(ActionType.READ_TEXT, ActionType.READ_LIST, ActionType.WAIT_FOR)
     }
 }

@@ -41,7 +41,8 @@ class TargetResolver(
         val all = root.walk().toList()
 
         var pool: List<UiNode>? = null
-        for ((kind, matches) in hintMatches(target.hints, all)) {
+        // Hints are exact, but still only count for elements of the expected role
+        for ((kind, matches) in hintMatches(target.hints, all.filter { fitsRole(it, target.role) })) {
             when {
                 matches.size == 1 -> return Resolution.Found(matches.single(), 1.0, "hint:$kind")
                 matches.size > 1 -> { pool = matches; break }

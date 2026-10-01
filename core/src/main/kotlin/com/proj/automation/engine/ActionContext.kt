@@ -17,7 +17,9 @@ class ActionContext(
     val cancellationToken: CancellationToken,
     val targetResolver: TargetResolver = TargetResolver(),
     val clock: () -> Long = System::currentTimeMillis,
-    val sleep: suspend (Long) -> Unit = { delay(it) }
+    val sleep: suspend (Long) -> Unit = { delay(it) },
+    /** Screens of apps this returns false for read as empty (a plugin's approved apps) */
+    val canSee: (String?) -> Boolean = { true }
 ) {
     /** Result of looking up the element a step acts on */
     sealed class Lookup {
@@ -25,7 +27,8 @@ class ActionContext(
         data class Missing(val code: ErrorCode, val message: String) : Lookup()
     }
 
-    fun snapshot(): UiNode? = device.snapshot()
+    /** The current screen, or null when there is none or this run may not see it */
+    fun snapshot(): UiNode? = if (canSee(device.foregroundPackage())) device.snapshot() else null
 
     /** Finds the element for a step from its `target`. */
     fun locate(step: Step): Lookup {
