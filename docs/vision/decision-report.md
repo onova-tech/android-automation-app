@@ -79,7 +79,7 @@ Grouped by what blocks what. Answer the **blocking** ones first; the rest can co
 |---|----------|----------------|-------------------|
 | D1 | **Which phone will be the agent?** Pick a model, or approve these criteria and I will propose models: still receiving security updates, ≥ 6 GB RAM, Samsung or Pixel. **Trade-off:** a patched phone will run Android 14+, which adds rules that let apps hide screens from automation | Spike 4 completion, Spikes 3 and 6, all device work | A recent mid-range Samsung or Pixel still under updates; accept Android 14+ and test early |
 | D2 | **Approve the three proposed ADRs** (006 Laya, 007 plugin packages, 008 channels), or tell me what to change | Phase 2 design | Approve; each has a test that can reverse it |
-| D3 | ~~Autonomy~~ **Answered 2026-10-01:** commit and push to this repository without asking; work split into branches uses `feature/<name>`. Still open: should finished branches become pull requests, or should I merge them myself? | — | Pull requests for anything touching security or banking; direct merge for docs |
+| D3 | **Autonomy.** Answered 2026-10-01: commit and push to this repository without asking; branches use `feature/<name>`. **Still open:** (a) may I start Phase 2 (engine foundation, no SMS, no banking) before the agent phone arrives? (b) should finished branches become pull requests, or do I merge them myself? | Starting Phase 2 | (a) Yes, it needs no phone; (b) pull requests for anything touching security or banking, direct merge for docs |
 
 ### 3.2 Blocking — actions only you can do
 
