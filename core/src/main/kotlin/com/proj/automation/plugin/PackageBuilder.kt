@@ -1,10 +1,7 @@
 package com.proj.automation.plugin
 
 import com.proj.automation.parser.YamlParser
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 /**
  * Builds a `.agp` from a plugin source folder (docs/vision/plugins.md section 4.5):
@@ -15,17 +12,15 @@ import java.util.zip.ZipOutputStream
  */
 object PackageBuilder {
 
-    /** 1980-02-01 in local DOS time; any fixed value works, this one round-trips through zip */
-    private const val FIXED_TIME = 315_532_800_000L + 31L * 24 * 3600 * 1000
-
     data class Result(val bytes: ByteArray, val plugin: Plugin)
 
-    fun build(pluginDir: File, librariesDir: File? = null): Result {
+    /** @param signingKey when given, the package is signed with it (ADR-009) */
+    fun build(pluginDir: File, librariesDir: File? = null, signingKey: java.security.KeyPair? = null): Result {
         if (!pluginDir.isDirectory) throw PluginPackageException("Not a folder: $pluginDir")
         val entries = sortedMapOf<String, ByteArray>()
 
         collect(pluginDir).forEach { (path, bytes) ->
-            if (path == PackageLock.FILE || path.startsWith("lib/")) return@forEach // regenerated / vendored below
+            if (path == PackageLock.FILE || path == PackageSignature.FILE || path.startsWith("lib/")) return@forEach // regenerated / vendored / signed later
             entries[path] = bytes
         }
 
@@ -48,23 +43,10 @@ object PackageBuilder {
         entries[PackageLock.FILE] = PackageLock.forFiles(entries, manifest.libraries).render().toByteArray()
         entries.keys.forEach { PackageReader.checkPath(it); PackageReader.checkAllowed(it) }
 
-        val bytes = zip(entries)
+        val unsigned = PackageZip.write(entries)
+        val bytes = signingKey?.let { PackageSignature.signPackage(unsigned, it.private, it.public) } ?: unsigned
         val plugin = PluginLoader.load(bytes)
         return Result(bytes, plugin)
-    }
-
-    private fun zip(entries: Map<String, ByteArray>): ByteArray {
-        val out = ByteArrayOutputStream()
-        ZipOutputStream(out).use { zip ->
-            zip.setLevel(9)
-            for ((path, bytes) in entries.toSortedMap()) {
-                val entry = ZipEntry(path).apply { time = FIXED_TIME }
-                zip.putNextEntry(entry)
-                zip.write(bytes)
-                zip.closeEntry()
-            }
-        }
-        return out.toByteArray()
     }
 
     /** Regular files under [dir], by relative path with '/' separators; hidden files are skipped */

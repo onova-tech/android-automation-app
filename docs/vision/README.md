@@ -22,6 +22,7 @@
 | [ADR-006](../adr/ADR-006-laya-decision-layer.md) | Accepted decision: Laya as local decision layer |
 | [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) | Accepted decision: declarative plugin packages (zip of YAML files), intelligence in the base app |
 | [ADR-008](../adr/ADR-008-channel-abstraction.md) | Accepted decision: channel abstraction, SMS as the first channel |
+| [ADR-009](../adr/ADR-009-package-signing.md) | Accepted decision: signing plugin packages |
 
 ---
 

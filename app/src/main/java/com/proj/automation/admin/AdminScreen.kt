@@ -33,9 +33,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.proj.automation.agent.AgentCoordinator
 import com.proj.automation.channel.Envelope
 import com.proj.automation.channel.GlobalVerb
+import com.proj.automation.plugin.InstallDecision
 import com.proj.automation.plugin.Plugin
 import com.proj.automation.plugin.PluginLoader
 import com.proj.automation.plugin.PluginPackageException
+import com.proj.automation.plugin.SignatureStatus
 import com.proj.automation.security.AuditLog
 import com.proj.automation.service.EventBus
 import kotlinx.coroutines.Dispatchers
@@ -200,6 +202,26 @@ fun AdminScreen() {
             Button(onClick = { openPackage.launch(arrayOf("*/*")) }) { Text("Install plugin (.agp)") }
         }
 
+        // ——— Trusted developers ———
+        Section("Trusted developers") {
+            Text("Keys whose packages install as verified. Financial plugins need one of these.", style = MaterialTheme.typography.bodySmall)
+            key(refresh) {
+                val keys = AgentCoordinator.trustedKeys()
+                if (keys.isEmpty()) Text("None")
+                keys.entries.sortedBy { it.value }.forEach { (fp, name) ->
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(name)
+                            Text(fp, style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 10.sp))
+                        }
+                        TextButton(onClick = {
+                            withCredential("Stop trusting $name") { scope.launch { AgentCoordinator.untrustKey(fp); refresh++ } }
+                        }) { Text("Remove") }
+                    }
+                }
+            }
+        }
+
         // ——— Senders ———
         Section("Allowed SMS senders") {
             Text("One number per line. This filters noise only; every command still needs a code.", style = MaterialTheme.typography.bodySmall)
@@ -275,14 +297,48 @@ fun AdminScreen() {
     // ——— Dialogs ———
     pendingInstall?.let { install ->
         var keyword by remember(install) { mutableStateOf(install.keyword) }
+        var trustKey by remember(install) { mutableStateOf(false) }
+        var trustName by remember(install) { mutableStateOf("") }
+        var unsignedAccepted by remember(install) { mutableStateOf(false) }
         val keywordError = keywordProblem(keyword, install.plugin.manifest.id)
+        val fingerprint = (install.plugin.signature as? SignatureStatus.Valid)?.fingerprint
+        val knownName = fingerprint?.let { AgentCoordinator.trustedKeys()[it] }
+        val newTrust = if (trustKey && fingerprint != null && trustName.isNotBlank()) mapOf(fingerprint to trustName.trim()) else emptyMap()
+        val decision = AgentCoordinator.installDecision(install.plugin, newTrust)
+        val canApprove = keywordError == null && decision is InstallDecision.Allowed &&
+            (fingerprint != null || unsignedAccepted) && (!trustKey || trustName.isNotBlank())
         AlertDialog(
             onDismissRequest = { pendingInstall = null },
             title = { Text("Approve plugin?") },
             text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // ——— Identity (ADR-009) ———
+                    when (decision) {
+                        is InstallDecision.Blocked -> Text("⛔ ${decision.reason}", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                        is InstallDecision.Allowed -> {
+                            decision.verifiedAs?.let { Text("✓ Verified developer: $it", color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold) }
+                            decision.warnings.forEach { Text("⚠ $it", color = Color(0xFFE65100), fontWeight = FontWeight.Bold) }
+                        }
+                    }
+                    if (fingerprint != null && knownName == null) {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Checkbox(checked = trustKey, onCheckedChange = { trustKey = it })
+                            Text("Trust this developer's key from now on")
+                        }
+                        if (trustKey) {
+                            Text("Only if the developer gave you this fingerprint through another channel:", style = MaterialTheme.typography.bodySmall)
+                            Text(fingerprint, style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp))
+                            OutlinedTextField(value = trustName, onValueChange = { trustName = it.take(40) }, label = { Text("Developer name") }, singleLine = true)
+                        }
+                    }
+                    if (fingerprint == null && decision is InstallDecision.Allowed) {
+                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Checkbox(checked = unsignedAccepted, onCheckedChange = { unsignedAccepted = it })
+                            Text("I understand this package's identity cannot be verified")
+                        }
+                    }
+                    // ——— What it asks for ———
                     Text(install.plugin.installSummary(), style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 12.sp))
-                    Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = keyword, onValueChange = { keyword = it.uppercase().take(10) },
                         label = { Text("Command keyword") }, isError = keywordError != null,
@@ -291,10 +347,15 @@ fun AdminScreen() {
                 }
             },
             confirmButton = {
-                Button(enabled = keywordError == null, onClick = {
+                Button(enabled = canApprove, onClick = {
                     withCredential("Install plugin ${install.plugin.manifest.id}") {
                         scope.launch {
-                            AgentCoordinator.installPlugin(keyword, install.bytes, install.plugin)
+                            try {
+                                newTrust.forEach { (fp, name) -> AgentCoordinator.trustKey(fp, name) }
+                                AgentCoordinator.installPlugin(keyword, install.bytes, install.plugin)
+                            } catch (e: PluginPackageException) {
+                                message = "Not installed: ${e.message}"
+                            }
                             pendingInstall = null
                             refresh++
                         }

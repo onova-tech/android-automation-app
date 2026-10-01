@@ -87,7 +87,7 @@ object PackageReader {
         val parts = path.split('/')
         val ext = path.substringAfterLast('.', "")
         val ok = when {
-            parts.size == 1 -> path in setOf("plugin.yaml", "commands.yaml", "interrupts.yaml", "README.md", PackageLock.FILE)
+            parts.size == 1 -> path in setOf("plugin.yaml", "commands.yaml", "interrupts.yaml", "README.md", PackageLock.FILE, PackageSignature.FILE)
             parts.size == 2 && parts[0] in YAML_DIRS -> ext == "yaml"
             parts.size == 2 && parts[0] == "fixtures" -> ext == "json" || ext == "xml"
             parts.size == 2 && parts[0] == "i18n" -> ext == "yaml" && Manifest.LANGUAGE.matches(parts[1].removeSuffix(".yaml"))

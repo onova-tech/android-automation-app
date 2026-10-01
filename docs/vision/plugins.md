@@ -149,6 +149,7 @@ Plugins are written as **folders** in a source repository. A command-line tool t
 | `agp test <folder>` | Runs every test in `tests/` with the real engine against the screens in `fixtures/`, in virtual time; each test gives the skill, arguments, screen transitions (`after: click, label: ..., screen: ...`) and the expected status, error, return value and interaction log |
 | `agp build <folder>` | Vendors the libraries, writes `PACKAGE.lock`, and produces a **reproducible** zip (sorted entries, fixed timestamps), so the same source always gives the same hash |
 | `agp inspect <file.agp>` | Verifies a package and prints its install summary and hash |
+| `agp keygen`, `agp sign`, `agp verify`, `agp fingerprint` | Developer signing keys (private key encrypted with a passphrase) and package signatures; see ADR-009 |
 | `agp targets <folder\|file.agp> <dump.xml> [--lang <code>]` | Resolves every named target against a real `uiautomator dump` and shows how each was found (exact hint, ranking score) or why not |
 
 The phone only accepts built packages.
@@ -320,6 +321,8 @@ Limits (per-operation and daily amounts, allowed hours, beneficiary list, rate l
 5. **Homologation:** the base app compares the installed app version to `tested_versions`, then runs an optional read-only dry run.
 6. The plugin is enabled.
 
+**Signatures ([ADR-009](../adr/ADR-009-package-signing.md)):** a package may carry `PACKAGE.sig`, an ECDSA P-256 signature over the package hash, added by `agp sign` or `agp build --key`. At install the app shows *Verified developer* (trusted key), a warning with the key fingerprint (unknown key, which the owner can trust with a name on the spot), or a prominent *identity could not be verified* warning plus an extra confirmation (unsigned). An invalid signature is rejected. **Financial plugins must be signed by a trusted key.** Updates must keep the signer of the installed version; changing it requires uninstalling, which deletes the plugin's secrets. The phone re-checks the recorded signer every time it loads a package.
+
 **Update:** a diff is shown per file. Added capabilities, added secrets, a changed target app, or changes to any flow that uses `type_secret` or financial targets require re-approval and disable the plugin until approved. Vendored library version changes are listed too.
 
 **Disable / uninstall:** immediate; uninstall wipes secrets, cache entries and pending jobs.
@@ -337,7 +340,8 @@ Limits (per-operation and daily amounts, allowed hours, beneficiary list, rate l
 | Plugin lowers risk to skip confirmation | Base app enforces the floor; the plugin can only raise it |
 | Plugin adds itself a beneficiary or raises limits | Policy is not plugin data |
 | Plugin loops forever / floods SMS | Global bounds; reply and rate limits |
-| A tampered plugin replaces a trusted one | Install only in admin mode; hash shown; updates re-approved; no remote install |
+| A tampered plugin replaces a trusted one | Install only in admin mode; hash shown; updates re-approved; no remote install; **signer continuity**: an update signed by another key (or unsigned) is blocked |
+| A package pretends to come from a known developer | Signatures are checked against keys the owner trusts by fingerprint; unknown or missing signatures are shown as such |
 | Plugin text influences the resolver into a wrong click | Anchor and exact-match verification for irreversible steps |
 | Owner approves without reading | Summary is short and explicit about secrets and risk floor; financial plugins add an extra confirmation screen |
 | Malicious zip: paths escaping the folder (`../`), absolute paths, symbolic links | Rejected at unpack; files are only read from the in-memory archive, never extracted to arbitrary paths |

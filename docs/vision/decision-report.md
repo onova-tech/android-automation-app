@@ -58,6 +58,7 @@ Status legend: ✅ decided · 🟡 proposed (needs your approval) · 🔬 depend
 | S6 | **Admin operations only in person** (install plugins, change limits, beneficiaries) | Remote compromise cannot change the rules | You must be at the phone to change configuration | ✅ |
 | S7 | **Risk levels by command and by channel trust** | A weak channel cannot do what a strong one can | More policy to configure | ✅ |
 | S8 | **Fail closed**: when unsure, stop and report | A wrong click can be irreversible | Some commands will fail and need a retry | ✅ |
+| S9 | **Plugin packages are signed by their developers** (ECDSA P-256, like APKs). Unsigned ones install only after a warning that their identity could not be verified; **financial plugins need a key you trust**; updates must keep the same signer | Origin and integrity; stops another package from taking over an installed plugin | Developers must keep their key safe; trusting a key is a manual step on the phone | ✅ (ADR-009) |
 
 ### 2.4 Things explicitly ruled out
 
