@@ -47,11 +47,14 @@ data class Manifest(
     val secrets: List<SecretSlot>,
     /** Libraries the plugin vendors, id → exact version */
     val libraries: Map<String, String>,
-    val requiresBase: String?
+    val requiresBase: String?,
+    /** Language used when the device's language has no texts in `i18n/` */
+    val defaultLanguage: String? = null
 ) {
     companion object {
         const val SCHEMA = 1
         private val ID = Regex("[a-z][a-z0-9-]{1,39}")
+        val LANGUAGE = Regex("[a-z]{2}(-[a-z]{2})?")
         private val SEMVER = Regex("""\d+\.\d+\.\d+""")
         private val PACKAGE = Regex("""[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+""")
 
@@ -71,12 +74,15 @@ data class Manifest(
             if (schema != SCHEMA) fail("unsupported schema $schema; this app supports $SCHEMA")
 
             val plugin = map(doc["plugin"], "plugin")
-            unknown(plugin, setOf("id", "name", "version", "category", "scope"), "plugin")
+            unknown(plugin, setOf("id", "name", "version", "category", "scope", "default_language"), "plugin")
             val id = plugin["id"]?.toString()?.takeIf { ID.matches(it) } ?: fail("'plugin.id' must match ${ID.pattern}")
             val version = plugin["version"]?.toString()?.takeIf { SEMVER.matches(it) } ?: fail("'plugin.version' must be x.y.z")
             val category = plugin["category"]?.toString()?.let { c ->
                 Category.entries.find { it.name.equals(c, ignoreCase = true) } ?: fail("unknown category '$c'")
             } ?: fail("missing 'plugin.category'")
+            val defaultLanguage = plugin["default_language"]?.toString()?.lowercase()?.also {
+                if (!LANGUAGE.matches(it)) fail("'plugin.default_language' must be a language code like pt or pt-br")
+            }
             val scope = plugin["scope"]?.toString()
             if (scope != null && scope != "read_only") fail("'plugin.scope' can only be read_only")
 
@@ -141,7 +147,8 @@ data class Manifest(
                 category = category, readOnly = scope == "read_only",
                 appPackage = pkg, testedVersions = strings(app["tested_versions"], "app.tested_versions"),
                 treeOnly = candidates == "tree_only", capabilities = capabilities, secrets = secrets,
-                libraries = libraries, requiresBase = doc["requires_base"]?.toString()
+                libraries = libraries, requiresBase = doc["requires_base"]?.toString(),
+                defaultLanguage = defaultLanguage
             )
         }
     }

@@ -56,6 +56,7 @@ STOP                                    disable remote commands (no code needed;
 | Verification | `expect:` on any action, `assert:` as a step |
 | Result | `return: "Sent to ${phone\|mask}"` |
 | Unexpected dialogs | `interrupts.yaml`: rules (`when` + limited `do`) checked before every screen action |
+| Languages | `i18n/pt.yaml`, `i18n/en.yaml` with `key: text`; use `${t.key}` anywhere; the phone's language picks the texts |
 
 Actions: `launch_app`, `open_url`, `click`, `type`, `read_text`, `read_list`, `scroll`, `scroll_until`,
 `wait`, `wait_for`, `back`, `home`, `log`. Every action accepts `retries`, `retry_delay`, `timeout`
@@ -70,12 +71,12 @@ $AGP validate plugins/whatsapp --libs plugins/libraries
 $AGP build    plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp
 $AGP inspect  build/whatsapp.agp
 $AGP test     plugins/whatsapp --libs plugins/libraries        # replay tests/ against fixtures/
-$AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries
+$AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries --lang pt
 ```
 
 `agp test` runs each skill test with the same engine as the phone, against recorded screens, in
-virtual time. The WhatsApp example has five (sent, not confirmed, chat does not open, a dialog in
-the way, read chat).
+virtual time. The WhatsApp example has six (sent, not confirmed, chat does not open, a dialog in
+the way, read chat, and a phone set to English with a changed button id).
 
 `agp targets` checks a plugin against a real screen: dump it with
 `adb shell uiautomator dump /sdcard/s.xml && adb pull /sdcard/s.xml` (the file stays on your computer).

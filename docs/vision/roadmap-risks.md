@@ -54,6 +54,8 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 **Progress (branch `feature/interrupts-replay`, 2026-10-01):** the engine runs in `:core` behind a `DevicePort` (the app supplies the Android one); `agp test` replays skills against recorded screens with the real engine in virtual time; interrupt rules (`interrupts.yaml`). The replays found and fixed a capability leak (conditions could read unapproved apps; plugins are now blind to them) and a resolver bug (exact hints ignored the role).
 
+**Progress (branch `feature/i18n`, 2026-10-01):** plugin texts per language (`i18n/`, `${t.key}`, device language with a default), validated at install, covered by replays.
+
 ### Phase 4 — Semantic resolution (Laya)
 
 - Full `ResolverPipeline`: cache, ranker, Laya, verification.

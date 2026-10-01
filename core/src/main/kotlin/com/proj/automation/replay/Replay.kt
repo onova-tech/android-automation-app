@@ -22,6 +22,8 @@ data class ReplayCase(
     val args: Map<String, String>,
     /** Fixture shown before the first interaction; null = no app on screen */
     val start: String?,
+    /** Device language for this test, e.g. "en"; null = the plugin's default */
+    val language: String?,
     val transitions: List<TransitionSpec>,
     val expect: Expectation
 )
@@ -55,6 +57,7 @@ data class ReplayOutcome(
  * skill: send
  * args: { phone: "5511999", text: "oi" }
  * start: home.xml                       # optional
+ * language: en                          # optional device language
  * transitions:                          # first match wins
  *   - { after: open_url, screen: chat.xml }
  *   - { after: click, label: "Enviar", screen: chat_sent.xml }
@@ -74,7 +77,7 @@ object Replay {
         } catch (e: YamlParseException) {
             fail(e.message ?: "invalid YAML")
         }
-        val extra = doc.keys - setOf("test", "skill", "args", "start", "transitions", "expect")
+        val extra = doc.keys - setOf("test", "skill", "args", "start", "language", "transitions", "expect")
         if (extra.isNotEmpty()) fail("unknown keys $extra")
         val expect = doc["expect"] as? Map<*, *> ?: fail("missing 'expect'")
         val expectExtra = expect.keys.map { it.toString() } - setOf("status", "error", "return", "interactions")
@@ -97,6 +100,7 @@ object Replay {
             skill = doc["skill"]?.toString() ?: fail("missing 'skill'"),
             args = (doc["args"] as? Map<*, *>).orEmpty().entries.associate { it.key.toString() to it.value.toString() },
             start = doc["start"]?.toString(),
+            language = doc["language"]?.toString(),
             transitions = transitions,
             expect = Expectation(
                 status = status,
@@ -114,7 +118,8 @@ object Replay {
         }
         val device = ScreenDevice(
             screen(case.start),
-            case.transitions.map { Transition(it.on, it.label, screen(it.screen)) }
+            case.transitions.map { Transition(it.on, it.label, screen(it.screen)) },
+            language = case.language
         )
         var now = 0L
         val engine = ExecutionEngine(

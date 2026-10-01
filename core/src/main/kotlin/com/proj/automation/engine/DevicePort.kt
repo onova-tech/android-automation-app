@@ -24,4 +24,7 @@ interface DevicePort {
     fun home(): Boolean
     fun launchApp(packageName: String): LaunchResult
     fun openUrl(url: String): Boolean
+
+    /** The device's language, e.g. "pt" or "en-US"; selects a plugin's texts */
+    fun language(): String? = null
 }

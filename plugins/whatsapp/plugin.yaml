@@ -4,6 +4,7 @@ plugin:
   name: WhatsApp
   version: 0.1.0
   category: messaging
+  default_language: pt
 
 app:
   package: com.whatsapp

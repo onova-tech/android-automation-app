@@ -37,6 +37,11 @@ class Interpreter(
         val deadline: Long,
         val guard: com.proj.automation.plugin.ActionGuard?
     ) {
+        /** The plugin's texts in the device's language, visible everywhere as `t` */
+        val texts: Map<String, String> = program.stringsFor(context.device.language())
+
+        /** A fresh scope: variables are local, only the texts are shared */
+        fun newScope() = Scope(mapOf(TEXTS to texts))
         val steps = mutableListOf<StepResult>()
         var nodes = 0
         /** Times each interrupt rule fired in this run */
@@ -61,7 +66,7 @@ class Interpreter(
             RunResult(status, code, message, value, run.steps.toList(), context.clock() - start)
 
         return try {
-            val scope = Scope()
+            val scope = run.newScope()
             // Program arguments come from outside (e.g. an SMS) and are bound literally, never rendered
             bindParams(program.params, args, scope, "program")
             exec(program.body, scope, run, depth = 0)
@@ -113,7 +118,7 @@ class Interpreter(
             is Node.Call -> {
                 if (depth + 1 > limits.maxCallDepth) throw Abort(ErrorCode.E_BUDGET, "Flow call depth over ${limits.maxCallDepth}")
                 val flow = run.program.flows.getValue(node.flow)
-                val local = Scope()
+                val local = run.newScope()
                 val args = node.args.mapValues { (_, v) -> Templates.render(v, scope) }
                 bindParams(flow.params, args, local, "flow '${flow.name}'")
                 val value = try {
@@ -204,7 +209,7 @@ class Interpreter(
         if (rules.isEmpty() || run.inInterrupt) return false
         var fired = false
         repeat(MAX_INTERRUPT_CHAIN) {
-            val ruleScope = Scope() // rules never see the skill's variables
+            val ruleScope = run.newScope() // rules never see the skill's variables
             val rule = rules.firstOrNull { (run.fired[it.name] ?: 0) < it.maxPerRun && eval(it.condition, ruleScope, run) }
                 ?: return fired
             run.fired[rule.name] = (run.fired[rule.name] ?: 0) + 1
@@ -244,6 +249,8 @@ class Interpreter(
         )
         val RETRY_AFTER_INTERRUPT = setOf(ErrorCode.E_NOT_FOUND, ErrorCode.E_LOW_CONFIDENCE, ErrorCode.E_TIMEOUT)
         const val MAX_INTERRUPT_CHAIN = 3
+        /** Reserved variable holding the plugin's texts */
+        const val TEXTS = "t"
     }
 
     /** Binds already-rendered [args] and defaults into [target]; missing required ones fail. */
