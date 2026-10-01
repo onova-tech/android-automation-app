@@ -191,7 +191,7 @@ app/src/test/java/com/proj/automation/
 | [ADR-004](docs/adr/ADR-004-compose-over-xml.md) | Jetpack Compose over XML layouts | Accepted |
 | [ADR-005](docs/adr/ADR-005-poc-scope-trims.md) | POC scope trims — deferred to Phase 2 | Accepted |
 | [ADR-006](docs/adr/ADR-006-laya-decision-layer.md) | Laya as local decision layer for element resolution | Proposed |
-| [ADR-007](docs/adr/ADR-007-declarative-yaml-plugins.md) | Declarative YAML plugins, intelligence in the base app | Proposed |
+| [ADR-007](docs/adr/ADR-007-declarative-yaml-plugins.md) | Declarative plugin packages (zip of YAML files), intelligence in the base app | Proposed |
 | [ADR-008](docs/adr/ADR-008-channel-abstraction.md) | Channel abstraction, SMS as the first contact channel | Proposed |
 
 ## Vision and Target Architecture

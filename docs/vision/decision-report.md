@@ -37,7 +37,8 @@ Status legend: ✅ decided · 🟡 proposed (needs your approval) · 🔬 depend
 
 | # | Decision | Why | Cost / trade-off | Status |
 |---|----------|-----|------------------|--------|
-| A1 | **Plugins are YAML files**; all intelligence in the base app | Your requirement; small auditable plugins; a plugin cannot steal secrets or bypass limits | Every missing capability needs a base-app release | ✅ (ADR-007 🟡) |
+| A1 | **Plugins are packages: a zip of small YAML files** with reusable flows and shared libraries; still no code; all intelligence in the base app | Your requirement; a single YAML file grows too big; reuse without copy-paste; a plugin cannot steal secrets or bypass limits | A build tool and a safe unpacker; every missing capability needs a base-app release | ✅ 🔁 (was one YAML file; ADR-007 🟡) |
+| A1a | **Libraries are vendored** into each package at build time (v1) | The hash you approve covers everything that runs; a library update cannot change an approved plugin | A library fix means rebuilding the plugins that use it | 🟡 |
 | A2 | **Structured surfaces before screen automation** (deeplinks, notification replies, then UI) | Far more robust than finding buttons | Each plugin must be designed per app | ✅ |
 | A3 | **Self-healing element resolution**: cache → exact hints → heuristic ranking → Laya → verify after acting | Survives app redesigns without editing plugins | More components; needs training data | 🟡 |
 | A4 | **Laya** as the local decision model (text only, picks among known candidates) | Runs offline, cannot invent actions | ~650 MB; needs fine-tuning; very new project. Kept only if it beats a simple baseline | 🟡 🔬 (ADR-006, Spikes 1–2) |
@@ -77,7 +78,7 @@ Grouped by what blocks what. Answer the **blocking** ones first; the rest can co
 | # | Question | What it blocks | My recommendation |
 |---|----------|----------------|-------------------|
 | D1 | **Which phone will be the agent?** Pick a model, or approve these criteria and I will propose models: still receiving security updates, ≥ 6 GB RAM, Samsung or Pixel. **Trade-off:** a patched phone will run Android 14+, which adds rules that let apps hide screens from automation | Spike 4 completion, Spikes 3 and 6, all device work | A recent mid-range Samsung or Pixel still under updates; accept Android 14+ and test early |
-| D2 | **Approve the three proposed ADRs** (006 Laya, 007 YAML plugins, 008 channels), or tell me what to change | Phase 2 design | Approve; each has a test that can reverse it |
+| D2 | **Approve the three proposed ADRs** (006 Laya, 007 plugin packages, 008 channels), or tell me what to change | Phase 2 design | Approve; each has a test that can reverse it |
 | D3 | **Autonomy:** may I start Phase 2 (engine foundation, no SMS, no banking) and **commit and push** to this branch without asking each time? Should I open pull requests or only push? | Everything after the spikes | Yes to commit + push on this branch; PRs only when you ask |
 
 ### 3.2 Blocking — actions only you can do
