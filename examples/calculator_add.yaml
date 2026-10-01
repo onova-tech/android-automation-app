@@ -1,0 +1,35 @@
+name: Calculator - Add 2 + 3
+description: Automate 2 + 3 = 5 on the built-in Calculator app
+steps:
+  - launch_app:
+      package: com.google.android.calculator  # AOSP images: com.android.calculator2
+
+  - wait:
+      seconds: 2
+
+  - wait_for:
+      selector:
+        text: "2"
+      timeout: 5000
+
+  - click:
+      selector:
+        text: "2"
+      retries: 3
+
+  - click:
+      selector:
+        text: "+"
+
+  - click:
+      selector:
+        text: "3"
+
+  - click:
+      selector:
+        text: "="
+      retries: 5
+      retry_delay: 1000
+
+  - wait:
+      seconds: 2

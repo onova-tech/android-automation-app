@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Android Automation</string>
+    <string name="editor_title">Workflow Editor</string>
+    <string name="editor_run">Run</string>
+    <string name="editor_stop">Stop</string>
+    <string name="editor_log">Execution Log</string>
+    <string name="permission_enabled">Accessibility Service enabled</string>
+    <string name="permission_disabled">Enable Accessibility Service to run workflows</string>
+    <string name="permission_settings">Open Settings</string>
+    <string name="status_running">Running…</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_error">Error</string>
+</resources>
