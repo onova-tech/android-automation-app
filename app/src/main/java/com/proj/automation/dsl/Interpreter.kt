@@ -51,14 +51,28 @@ class Interpreter(
     private class Abort(val code: ErrorCode, message: String) : RuntimeException(message)
     private class ReturnSignal(val value: String) : RuntimeException(null, null, false, false)
 
-    private class Run(val program: Program, val context: ActionContext, val deadline: Long) {
+    private class Run(
+        val program: Program,
+        val context: ActionContext,
+        val deadline: Long,
+        val guard: com.proj.automation.plugin.ActionGuard?
+    ) {
         val steps = mutableListOf<StepResult>()
         var nodes = 0
     }
 
-    suspend fun run(program: Program, args: Map<String, String>, context: ActionContext): RunResult {
+    /**
+     * @param guard checked before every action (a plugin's approved capabilities); a denial ends
+     *   the run with [ErrorCode.E_CAPABILITY] and cannot be caught by the program
+     */
+    suspend fun run(
+        program: Program,
+        args: Map<String, String>,
+        context: ActionContext,
+        guard: com.proj.automation.plugin.ActionGuard? = null
+    ): RunResult {
         val start = System.currentTimeMillis()
-        val run = Run(program, context, start + limits.maxDurationMs)
+        val run = Run(program, context, start + limits.maxDurationMs, guard)
         fun result(status: RunStatus, code: ErrorCode? = null, message: String? = null, value: String? = null) =
             RunResult(status, code, message, value, run.steps.toList(), System.currentTimeMillis() - start)
 
@@ -141,6 +155,10 @@ class Interpreter(
         if (run.steps.size >= limits.maxActions) throw Abort(ErrorCode.E_BUDGET, "More than ${limits.maxActions} actions")
         val step = node.step.rendered(scope)
         val index = run.steps.size
+        run.guard?.let { guard ->
+            val foreground = run.context.automation.getRootNode()?.packageName?.toString()
+            guard.check(step, foreground)?.let { reason -> throw Abort(ErrorCode.E_CAPABILITY, "Not permitted: $reason") }
+        }
 
         var result = try {
             errorHandler.executeWithPolicy(step, { ctx -> dispatcher.dispatch(step, ctx) }, run.context)

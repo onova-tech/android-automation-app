@@ -108,6 +108,24 @@ Every v1 workflow above still runs unchanged. v2 adds:
 
 The engine enforces global limits (actions, steps, call depth, duration) that a workflow cannot override, and returns structured error codes (`E_NOT_FOUND`, `E_TIMEOUT`, `E_VERIFY_FAILED`, …). Recursive flows and bad templates are rejected before the run starts. See [`examples/calculator_flows_v2.yaml`](examples/calculator_flows_v2.yaml).
 
+## Plugins and the `agp` tool
+
+Apps are supported through **plugin packages** (`.agp`: a zip of YAML files, no code). See
+[`plugins/whatsapp`](plugins/whatsapp) (an unvalidated example) and
+[docs/vision/plugins.md](docs/vision/plugins.md).
+
+```bash
+./gradlew :agp:installDist                      # builds tools/agp/build/install/agp/bin/agp
+AGP=tools/agp/build/install/agp/bin/agp
+$AGP validate plugins/whatsapp --libs plugins/libraries
+$AGP build    plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp
+$AGP inspect  build/whatsapp.agp
+$AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries
+```
+
+`agp targets` is the quickest way to check a plugin against a real screen: dump it with
+`adb shell uiautomator dump /sdcard/s.xml && adb pull /sdcard/s.xml` (the file stays on your computer).
+
 ## Selector Types
 
 | Selector | YAML | Description |
@@ -145,11 +163,11 @@ Tests cover:
 
 ## Project Structure
 
-Two Gradle modules:
+Three Gradle modules:
 
 | Module | Contents |
 |--------|----------|
-| `:core` (Kotlin/JVM, no Android) | Workflow language (`dsl/`: syntax tree, parser, templates), v1 parser (`parser/`), element targets and the ranking resolver (`resolve/`), screen snapshots and `uiautomator` XML reading (`ui/`), error codes. Shared with future command-line tools |
+| `:core` (Kotlin/JVM, no Android) | Plugin packages (`plugin/`: unpacker, lock, manifest, loader, capability guard, builder), workflow language (`dsl/`: syntax tree, parser, templates), v1 parser (`parser/`), element targets and the ranking resolver (`resolve/`), screen snapshots and `uiautomator` XML reading (`ui/`), error codes. Shared with future command-line tools |
 | `:app` (Android) | Interpreter (`dsl/Interpreter.kt`), execution engine and action handlers (`engine/`), accessibility service (`accessibility/`), live snapshots (`ui/UiSnapshots.kt`), v1 selector engine (`selector/`), event bus and state (`service/`), Compose editor (`editor/`) |
 
 ```
@@ -171,6 +189,8 @@ app/src/main/java/com/proj/automation/
 ├── service/         EventBus.kt, StateManager.kt
 └── ui/              UiSnapshots.kt
 ```
+
+| `:agp` (`tools/agp`, Kotlin/JVM) | Command-line tool for plugin authors |
 
 Tests: `./gradlew :core:test :app:testDebugUnitTest` (JVM, no device needed).
 

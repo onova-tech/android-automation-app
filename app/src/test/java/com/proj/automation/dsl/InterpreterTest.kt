@@ -277,6 +277,20 @@ class InterpreterTest {
     }
 
     @Test
+    fun `a capability guard denial ends the run and cannot be caught`() = runTest {
+        val guard = com.proj.automation.plugin.ActionGuard { step, _ ->
+            if (step.action.yamlValue == "click") "not approved" else null
+        }
+        val program = parser.parse(
+            "steps:\n  - try:\n      do: [ { click: { selector: { text: A } } } ]\n      on_error: [ { return: handled } ]"
+        )
+        val result = interpreter().run(program, emptyMap(), context, guard)
+        assertEquals(RunStatus.FAILED, result.status)
+        assertEquals(ErrorCode.E_CAPABILITY, result.errorCode)
+        assertTrue(dispatched.isEmpty())
+    }
+
+    @Test
     fun `cancellation ends the run as cancelled`() = runTest {
         coEvery { dispatcher.dispatch(any(), any()) } answers {
             token.cancel()

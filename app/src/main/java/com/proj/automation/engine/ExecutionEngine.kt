@@ -28,8 +28,15 @@ class ExecutionEngine(
     @Volatile
     private var cancellationToken = CancellationToken()
 
-    /** Run a DSL v2 program with literal arguments (for example, values from a command). */
-    suspend fun run(program: Program, args: Map<String, String> = emptyMap()): RunResult {
+    /**
+     * Run a DSL v2 program with literal arguments (for example, values from a command).
+     * [guard] restricts what the program may touch (a plugin's approved capabilities).
+     */
+    suspend fun run(
+        program: Program,
+        args: Map<String, String> = emptyMap(),
+        guard: com.proj.automation.plugin.ActionGuard? = null
+    ): RunResult {
         val token = CancellationToken().also { cancellationToken = it }
         val context = ActionContext(
             automation = com.proj.automation.accessibility.AutomationBridge.get(),
@@ -37,7 +44,13 @@ class ExecutionEngine(
             eventBus = eventBus,
             cancellationToken = token
         )
-        return interpreter.run(program, args, context)
+        return interpreter.run(program, args, context, guard)
+    }
+
+    /** Runs one of a plugin's skills under that plugin's capabilities. */
+    suspend fun runSkill(plugin: com.proj.automation.plugin.Plugin, skill: String, args: Map<String, String>): RunResult {
+        val s = plugin.skills[skill] ?: return RunResult(RunStatus.FAILED, ErrorCode.E_EXPR, "Unknown skill '$skill'")
+        return run(s.program, args, com.proj.automation.plugin.CapabilityGuard(plugin.manifest.capabilities))
     }
 
     /**

@@ -1,0 +1,13 @@
+# Elements of an open chat. Hints are guesses until validated on the real app;
+# the intent, role and region let the resolver find them if the hints are wrong.
+message_box:
+  intent: "campo para digitar a mensagem"
+  role: edit_text
+  hints: { resource_id: "com.whatsapp:id/entry" }
+  region: bottom
+
+send_button:
+  intent: "botão que envia a mensagem"
+  role: button
+  hints: { resource_id: "com.whatsapp:id/send", content_description: "Enviar" }
+  region: bottom-right

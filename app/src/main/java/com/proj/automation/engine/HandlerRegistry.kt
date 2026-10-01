@@ -20,6 +20,7 @@ fun buildHandlerRegistry(): Map<ActionType, ActionHandler> {
         ActionType.LOG to LogHandler(),
         ActionType.READ_TEXT to ReadTextHandler(),
         ActionType.READ_LIST to ReadListHandler(),
-        ActionType.SCROLL_UNTIL to ScrollUntilHandler()
+        ActionType.SCROLL_UNTIL to ScrollUntilHandler(),
+        ActionType.OPEN_URL to OpenUrlHandler()
     )
 }

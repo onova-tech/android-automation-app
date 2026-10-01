@@ -15,6 +15,8 @@ enum class ErrorCode {
     E_VERIFY_FAILED,
     /** The action ran and reported failure for another reason */
     E_ACTION_FAILED,
+    /** A plugin tried something its approved capabilities do not allow */
+    E_CAPABILITY,
     /** Invalid template, undefined variable or invalid flow call */
     E_EXPR,
     /** The run exceeded the engine's global limits (steps, call depth, duration) */

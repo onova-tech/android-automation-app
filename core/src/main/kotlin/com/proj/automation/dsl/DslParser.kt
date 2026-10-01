@@ -13,7 +13,15 @@ import com.proj.automation.parser.YamlParser
  * Everything that can be checked statically is checked here: template syntax and filters,
  * condition shapes, unknown flows and recursive flow calls.
  */
-class DslParser(private val yamlParser: YamlParser = YamlParser()) {
+class DslParser(
+    private val yamlParser: YamlParser = YamlParser(),
+    /** Named targets a step can reference by name (`target: send_button`), as raw `target:` mappings */
+    private val namedTargets: Map<String, Map<*, *>> = emptyMap(),
+    /** Named screens for `screen_is:`; each is a mapping with a `signals:` list of conditions */
+    private val screens: Map<String, Any?> = emptyMap(),
+    /** Already-parsed flows (e.g. from libraries) this document may call but does not define */
+    private val externalFlows: Map<String, Flow> = emptyMap()
+) {
 
     fun parse(yamlString: String): Program = parseDocument(yamlParser.loadDocument(yamlString))
 
@@ -30,6 +38,7 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
                 body = parseSteps(map["steps"], "flows.$name.steps")
             )
         }.associateBy { it.name }
+        flows.keys.firstOrNull { it in externalFlows }?.let { fail("flows.$it", "name already used by a library flow") }
 
         val program = Program(
             name = doc["name"] as? String,
@@ -37,7 +46,7 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
             params = parseParams(doc["params"], "params"),
             variables = (doc["variables"] as? Map<*, *>).orEmpty()
                 .entries.associate { it.key.toString() to it.value.toString() },
-            flows = flows,
+            flows = flows + externalFlows,
             body = parseSteps(doc["steps"], "steps")
         )
         checkCalls(program)
@@ -107,7 +116,9 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
         val expect = params["expect"]?.let {
             parseCondition(it as? Map<*, *> ?: fail("$path.$key.expect", "must be a condition"), "$path.$key.expect")
         }
-        val cleaned = mapOf(key to params.filterKeys { it != "expect" })
+        val cleaned = mapOf(key to params.filterKeys { it != "expect" }.mapValues { (k, v) ->
+            if (k == "target" && v is String) namedTarget(v, "$path.$key.target") else v
+        })
         val step = try {
             yamlParser.parseStep(cleaned, stepNumber)
         } catch (e: YamlParseException) {
@@ -121,7 +132,13 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
 
     // ——— Conditions ———
 
-    private fun parseCondition(raw: Map<*, *>, path: String): Condition {
+    /** Parses a condition mapping (also used for screen signals by the plugin loader) */
+    fun parseConditionMap(raw: Map<*, *>, path: String): Condition = parseCondition(raw, path)
+
+    private fun namedTarget(name: String, path: String): Map<*, *> =
+        namedTargets[name] ?: fail(path, "unknown target '$name'; defined: ${namedTargets.keys.sorted()}")
+
+    private fun parseCondition(raw: Map<*, *>, path: String, inScreen: Boolean = false): Condition {
         val keys = raw.keys.map { it.toString() }.filter { it in CONDITION_KEYS }
         if (keys.size != 1) fail(path, "needs exactly one condition of $CONDITION_KEYS, found ${raw.keys}")
         val key = keys.first()
@@ -130,6 +147,7 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
             "exists", "not_exists" -> {
                 val negate = key == "not_exists"
                 val targetRaw = (value as? Map<*, *>)?.get("target")
+                    ?.let { if (it is String) namedTarget(it, "$path.$key.target") else it }
                 if (targetRaw != null) {
                     val t = try {
                         com.proj.automation.resolve.Target.parse(targetRaw as? Map<*, *> ?: fail("$path.$key.target", "must be a mapping"))
@@ -141,14 +159,24 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
                 } else if (negate) Condition.NotExists(selector(value, "$path.$key"))
                 else Condition.Exists(selector(value, "$path.$key"))
             }
+            "screen_is" -> {
+                if (inScreen) fail("$path.screen_is", "screen signals cannot use screen_is")
+                val name = value?.toString() ?: fail("$path.screen_is", "needs a screen name")
+                val screen = screens[name] as? Map<*, *> ?: fail("$path.screen_is", "unknown screen '$name'; defined: ${screens.keys}")
+                val signals = screen["signals"] as? List<*>
+                if (signals.isNullOrEmpty()) fail("screens.$name", "needs a non-empty 'signals' list")
+                Condition.All(signals.mapIndexed { i, c ->
+                    parseCondition(c as? Map<*, *> ?: fail("screens.$name.signals[$i]", "must be a condition"), "screens.$name.signals[$i]", inScreen = true)
+                })
+            }
             "equals" -> pair(value, "$path.equals").let { (a, b) -> Condition.Equals(a, b) }
             "contains" -> pair(value, "$path.contains").let { (a, b) -> Condition.Contains(a, b) }
             "is_set" -> Condition.IsSet(value?.toString() ?: fail("$path.is_set", "needs a variable name"))
-            "not" -> Condition.Not(parseCondition(value as? Map<*, *> ?: fail("$path.not", "must be a condition"), "$path.not"))
+            "not" -> Condition.Not(parseCondition(value as? Map<*, *> ?: fail("$path.not", "must be a condition"), "$path.not", inScreen))
             "all", "any" -> {
                 val list = value as? List<*> ?: fail("$path.$key", "must be a list of conditions")
                 val parsed = list.mapIndexed { i, c ->
-                    parseCondition(c as? Map<*, *> ?: fail("$path.$key[$i]", "must be a condition"), "$path.$key[$i]")
+                    parseCondition(c as? Map<*, *> ?: fail("$path.$key[$i]", "must be a condition"), "$path.$key[$i]", inScreen)
                 }
                 if (key == "all") Condition.All(parsed) else Condition.AnyOf(parsed)
             }
@@ -222,7 +250,7 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
 
     companion object {
         val TOP_LEVEL_KEYS = setOf("name", "description", "params", "variables", "flows", "steps")
-        val CONDITION_KEYS = setOf("exists", "not_exists", "equals", "contains", "is_set", "not", "all", "any")
+        val CONDITION_KEYS = setOf("exists", "not_exists", "screen_is", "equals", "contains", "is_set", "not", "all", "any")
 
         fun selectorStrings(selector: Selector): List<String> = when (selector) {
             is Selector.ByText -> listOf(selector.text)
