@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "android-automation-app-poc"
 include(":app")
+include(":core")

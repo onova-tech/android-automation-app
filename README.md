@@ -133,7 +133,7 @@ Every step accepts these keys:
 
 ### Unit Tests (JVM, no device needed)
 ```bash
-./gradlew :app:testDebugUnitTest
+./gradlew :core:test :app:testDebugUnitTest
 ```
 
 Tests cover:
@@ -145,57 +145,34 @@ Tests cover:
 
 ## Project Structure
 
-```
-app/src/main/java/com/proj/automation/
-├── App.kt                           — Application class
-├── MainActivity.kt                  — Compose UI host
-├── accessibility/
-│   ├── AutomationBridge.kt          — Bridge interface
-│   └── AutomationService.kt         — AccessibilityService implementation
-├── dsl/
-│   ├── Ast.kt                       — DSL v2 syntax tree (nodes, conditions, flows)
-│   ├── DslParser.kt                 — v2 parser (accepts v1 workflows)
-│   ├── Interpreter.kt               — Control flow, variables, limits, post-conditions
-│   └── Templates.kt                 — ${var|filter} rendering and variable scopes
-├── editor/
-│   └── WorkflowEditorScreen.kt      — YAML editor Compose screen
-├── engine/
-│   ├── actions/                     — Individual action handlers
-│   ├── ActionContext.kt             — Handler context
-│   ├── ActionDispatcher.kt          — Handler router
-│   ├── CancellationToken.kt        — Cancellation support
-│   ├── ErrorHandler.kt             — Retry/timeout logic
-│   ├── ExecutionEngine.kt          — Core step loop
-│   └── models.kt                   — Result data classes
-├── parser/
-│   ├── ActionType.kt               — Action type enum
-│   ├── OnFailurePolicy.kt          — Failure policy sealed class
-│   ├── Selector.kt                 — Selector sealed hierarchy
-│   ├── WorkflowAst.kt              — Workflow/Step data classes
-│   ├── YamlParser.kt               — SnakeYAML parser
-│   └── exceptions.kt               — Parse/validation exceptions
-├── selector/
-│   ├── ByClassNameStrategy.kt       — Class name matching
-│   ├── ByContentDescriptionStrategy.kt — Content desc matching
-│   ├── ByResourceIdStrategy.kt      — Resource ID matching
-│   ├── ByTextStrategy.kt            — Text matching
-│   ├── ResolveResult.kt             — Resolution result model
-│   ├── SelectorEngine.kt            — Multi-strategy orchestrator
-│   └── SelectorStrategy.kt          — Strategy interface
-└── service/
-    ├── EventBus.kt                  — Typed pub/sub events
-    └── StateManager.kt              — UI state snapshots
+Two Gradle modules:
 
-app/src/test/java/com/proj/automation/
-├── engine/
-│   ├── ErrorHandlerTest.kt
-│   └── ExecutionEngineTest.kt
-├── parser/
-│   └── YamlParserTest.kt
-└── selector/
-    ├── ByTextStrategyTest.kt
-    └── SelectorEngineTest.kt
+| Module | Contents |
+|--------|----------|
+| `:core` (Kotlin/JVM, no Android) | Workflow language (`dsl/`: syntax tree, parser, templates), v1 parser (`parser/`), element targets and the ranking resolver (`resolve/`), screen snapshots and `uiautomator` XML reading (`ui/`), error codes. Shared with future command-line tools |
+| `:app` (Android) | Interpreter (`dsl/Interpreter.kt`), execution engine and action handlers (`engine/`), accessibility service (`accessibility/`), live snapshots (`ui/UiSnapshots.kt`), v1 selector engine (`selector/`), event bus and state (`service/`), Compose editor (`editor/`) |
+
 ```
+core/src/main/kotlin/com/proj/automation/
+├── dsl/        Ast.kt, DslParser.kt, Templates.kt
+├── parser/     ActionType, Selector, WorkflowAst (Step), YamlParser, OnFailurePolicy, exceptions
+├── resolve/    Target.kt, TargetResolver.kt
+├── ui/         UiNode.kt, UiXml.kt
+└── engine/     ErrorCode.kt
+
+app/src/main/java/com/proj/automation/
+├── App.kt, MainActivity.kt
+├── accessibility/   AutomationBridge.kt, AutomationService.kt
+├── dsl/             Interpreter.kt
+├── editor/          WorkflowEditorScreen.kt
+├── engine/          ExecutionEngine, ErrorHandler, ActionContext, ActionDispatcher,
+│                    HandlerRegistry, CancellationToken, models, actions/
+├── selector/        SelectorEngine + strategies (v1 selectors)
+├── service/         EventBus.kt, StateManager.kt
+└── ui/              UiSnapshots.kt
+```
+
+Tests: `./gradlew :core:test :app:testDebugUnitTest` (JVM, no device needed).
 
 ## Known Limitations
 

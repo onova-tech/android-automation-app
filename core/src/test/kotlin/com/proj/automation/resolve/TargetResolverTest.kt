@@ -2,7 +2,7 @@ package com.proj.automation.resolve
 
 import com.proj.automation.ui.Bounds
 import com.proj.automation.ui.UiNode
-import com.proj.automation.ui.UiSnapshots
+import com.proj.automation.ui.UiXml
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -12,7 +12,7 @@ class TargetResolverTest {
     private val resolver = TargetResolver()
 
     private fun fixture(name: String): UiNode =
-        UiSnapshots.fromUiAutomatorXml(javaClass.getResource("/fixtures/$name")!!.readText())
+        UiXml.parse(javaClass.getResource("/fixtures/$name")!!.readText())
 
     private val chat = fixture("chat_synthetic.xml")
     private val bank = fixture("bank_home_synthetic.xml")

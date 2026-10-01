@@ -156,7 +156,8 @@ class Interpreter(
             )
         }
 
-        if (result.success && node.expect != null && !eval(node.expect, scope, run)) {
+        val expect = node.expect
+        if (result.success && expect != null && !eval(expect, scope, run)) {
             result = result.copy(
                 success = false, errorCode = ErrorCode.E_VERIFY_FAILED,
                 errorMessage = "Post-condition not met: ${node.expect}"

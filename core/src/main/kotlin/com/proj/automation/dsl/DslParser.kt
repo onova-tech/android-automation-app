@@ -224,7 +224,7 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
         val TOP_LEVEL_KEYS = setOf("name", "description", "params", "variables", "flows", "steps")
         val CONDITION_KEYS = setOf("exists", "not_exists", "equals", "contains", "is_set", "not", "all", "any")
 
-        internal fun selectorStrings(selector: Selector): List<String> = when (selector) {
+        fun selectorStrings(selector: Selector): List<String> = when (selector) {
             is Selector.ByText -> listOf(selector.text)
             is Selector.ByResourceId -> listOf(selector.resourceId)
             is Selector.ByContentDescription -> listOf(selector.description)
@@ -232,7 +232,7 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
             is Selector.Composite -> selector.fallbackOrder.flatMap { selectorStrings(it) }
         }
 
-        internal fun mapSelector(selector: Selector, f: (String) -> String): Selector = when (selector) {
+        fun mapSelector(selector: Selector, f: (String) -> String): Selector = when (selector) {
             is Selector.ByText -> Selector.ByText(f(selector.text))
             is Selector.ByResourceId -> Selector.ByResourceId(f(selector.resourceId))
             is Selector.ByContentDescription -> Selector.ByContentDescription(f(selector.description))
@@ -242,8 +242,8 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
     }
 }
 
-/** Renders every template in a step's parameters and selector */
-internal fun Step.rendered(scope: Scope): Step = copy(
+/** Renders every template in a step's parameters, selector and target */
+fun Step.rendered(scope: Scope): Step = copy(
     parameters = parameters.mapValues { (_, v) -> (v as? String)?.let { Templates.render(it, scope) } ?: v },
     selector = selector?.let { DslParser.mapSelector(it) { s -> Templates.render(s, scope) } },
     target = target?.map { s -> Templates.render(s, scope) }
