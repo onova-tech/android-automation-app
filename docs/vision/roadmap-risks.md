@@ -139,5 +139,5 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 1. Choose the agent phone (open item 1) and the dumbphone (open item 8).
 2. On the agent phone, finish Spike 4 (our service + PIN in the system prompt), then Spikes 3 and 6. Spike 1 can run on the S20 FE now (read-only performance test, no secrets).
-3. Approve [ADR-006](../adr/ADR-006-laya-decision-layer.md), [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) and [ADR-008](../adr/ADR-008-channel-abstraction.md), or adjust them with spike results.
+3. ~~Approve ADR-006, ADR-007 and ADR-008~~ Accepted on 2026-10-01; spike results can still reverse them.
 4. Only then break Phase 2 into tickets.

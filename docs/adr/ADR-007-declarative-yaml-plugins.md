@@ -3,10 +3,10 @@
 | Field | Value |
 |-------|-------|
 | **ADR** | ADR-007 |
-| **Status** | **Proposed** (conditional on Spike 7). Revised 2026-10-01: single YAML file → zip package of YAML files |
+| **Status** | **Accepted** (2026-10-01). Revised the same day: single YAML file → zip package of YAML files. Revisit if Spike 7 fails |
 | **Date** | 2026-09-30 |
 | **Context** | Target vision in `docs/vision/` — adding support for new apps (WhatsApp, Telegram, a bank) |
-| **Deciders** | TBD |
+| **Deciders** | Owner |
 
 ## Context
 

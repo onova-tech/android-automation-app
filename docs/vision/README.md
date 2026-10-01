@@ -19,9 +19,9 @@
 | [sms-security.md](sms-security.md) | SMS channel, command protocol, printed one-time-code sheet, threat model, bank transfers |
 | [roadmap-risks.md](roadmap-risks.md) | Phases, validation spikes, risks, open decisions |
 | [spike-04-nubank.md](spike-04-nubank.md) | Spike 4 results so far: Nubank exposes balance and statement in the tree; login uses the system credential prompt |
-| [ADR-006](../adr/ADR-006-laya-decision-layer.md) | Proposed decision: Laya as local decision layer |
-| [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) | Proposed decision: declarative plugin packages (zip of YAML files), intelligence in the base app |
-| [ADR-008](../adr/ADR-008-channel-abstraction.md) | Proposed decision: channel abstraction, SMS as the first channel |
+| [ADR-006](../adr/ADR-006-laya-decision-layer.md) | Accepted decision: Laya as local decision layer |
+| [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) | Accepted decision: declarative plugin packages (zip of YAML files), intelligence in the base app |
+| [ADR-008](../adr/ADR-008-channel-abstraction.md) | Accepted decision: channel abstraction, SMS as the first channel |
 
 ---
 
