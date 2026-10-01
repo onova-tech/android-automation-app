@@ -115,11 +115,22 @@ class YamlParser {
             .mapValues { it.value?.toString() ?: "" }
 
         val selector = parseSelector(rawParams["selector"] as? Map<*, *>)
+        val target = (rawParams["target"] as? Map<*, *>)?.let {
+            try {
+                com.proj.automation.resolve.Target.parse(it)
+            } catch (e: IllegalArgumentException) {
+                throw YamlParseException("Step $stepIndex target: ${e.message}", line = stepIndex, column = 0)
+            }
+        }
+        if (selector != null && target != null) {
+            throw YamlParseException("Step $stepIndex has both 'selector' and 'target'; use one", line = stepIndex, column = 0)
+        }
 
         return Step(
             action = actionType,
             parameters = params,
             selector = selector,
+            target = target,
             retries = (rawParams["retries"] as? Number)?.toInt() ?: 1,
             retryDelayMs = (rawParams["retry_delay"] as? Number)?.toLong()
                 ?: (rawParams["retryDelayMs"] as? Number)?.toLong() ?: 1000,

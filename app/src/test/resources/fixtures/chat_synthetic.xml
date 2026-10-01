@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<!-- Synthetic chat screen in the style of a messenger (not a real dump). 1080x2340 screen. -->
+<hierarchy rotation="0">
+  <node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.example.chat" content-desc="" clickable="false" scrollable="false" focused="false" bounds="[0,0][1080,2340]">
+    <node index="0" text="" resource-id="com.example.chat:id/back" class="android.widget.ImageButton" package="com.example.chat" content-desc="Voltar" clickable="true" scrollable="false" focused="false" bounds="[0,80][120,200]" />
+    <node index="1" text="Maria Silva" resource-id="com.example.chat:id/title" class="android.widget.TextView" package="com.example.chat" content-desc="" clickable="true" scrollable="false" focused="false" bounds="[130,90][700,190]" />
+    <node index="2" text="" resource-id="com.example.chat:id/menu" class="android.widget.ImageButton" package="com.example.chat" content-desc="Mais opções" clickable="true" scrollable="false" focused="false" bounds="[960,80][1080,200]" />
+    <node index="3" text="" resource-id="com.example.chat:id/messages" class="androidx.recyclerview.widget.RecyclerView" package="com.example.chat" content-desc="" clickable="false" scrollable="true" focused="false" bounds="[0,210][1080,2080]">
+      <node index="0" text="Chego em 10 minutos" resource-id="com.example.chat:id/message_text" class="android.widget.TextView" package="com.example.chat" content-desc="" clickable="true" scrollable="false" focused="false" bounds="[400,1800][1050,1900]" />
+      <node index="1" text="Ok, te espero" resource-id="com.example.chat:id/message_text" class="android.widget.TextView" package="com.example.chat" content-desc="" clickable="true" scrollable="false" focused="false" bounds="[30,1950][600,2050]" />
+    </node>
+    <node index="4" text="" resource-id="com.example.chat:id/emoji" class="android.widget.ImageButton" package="com.example.chat" content-desc="Emoji" clickable="true" scrollable="false" focused="false" bounds="[0,2120][120,2240]" />
+    <node index="5" text="Mensagem" resource-id="com.example.chat:id/entry" class="android.widget.EditText" package="com.example.chat" content-desc="" clickable="true" scrollable="false" focused="true" bounds="[120,2110][900,2250]" />
+    <node index="6" text="" resource-id="com.example.chat:id/send_v2" class="android.widget.ImageButton" package="com.example.chat" content-desc="Enviar" clickable="true" scrollable="false" focused="false" bounds="[930,2110][1070,2250]" />
+  </node>
+</hierarchy>

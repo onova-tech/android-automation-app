@@ -115,6 +115,7 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
         }
         step.parameters.forEach { (k, v) -> (v as? String)?.let { template(it, "$path.$key.$k") } }
         step.selector?.let { selectorStrings(it).forEach { s -> template(s, "$path.$key.selector") } }
+        step.target?.let { it.strings().forEach { s -> template(s, "$path.$key.target") } }
         return Node.Action(step, expect)
     }
 
@@ -126,8 +127,20 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
         val key = keys.first()
         val value = raw[key]
         return when (key) {
-            "exists" -> Condition.Exists(selector(value, "$path.exists"))
-            "not_exists" -> Condition.NotExists(selector(value, "$path.not_exists"))
+            "exists", "not_exists" -> {
+                val negate = key == "not_exists"
+                val targetRaw = (value as? Map<*, *>)?.get("target")
+                if (targetRaw != null) {
+                    val t = try {
+                        com.proj.automation.resolve.Target.parse(targetRaw as? Map<*, *> ?: fail("$path.$key.target", "must be a mapping"))
+                    } catch (e: IllegalArgumentException) {
+                        fail("$path.$key.target", e.message ?: "invalid target")
+                    }
+                    t.strings().forEach { template(it, "$path.$key.target") }
+                    Condition.TargetExists(t, negate)
+                } else if (negate) Condition.NotExists(selector(value, "$path.$key"))
+                else Condition.Exists(selector(value, "$path.$key"))
+            }
             "equals" -> pair(value, "$path.equals").let { (a, b) -> Condition.Equals(a, b) }
             "contains" -> pair(value, "$path.contains").let { (a, b) -> Condition.Contains(a, b) }
             "is_set" -> Condition.IsSet(value?.toString() ?: fail("$path.is_set", "needs a variable name"))
@@ -232,5 +245,6 @@ class DslParser(private val yamlParser: YamlParser = YamlParser()) {
 /** Renders every template in a step's parameters and selector */
 internal fun Step.rendered(scope: Scope): Step = copy(
     parameters = parameters.mapValues { (_, v) -> (v as? String)?.let { Templates.render(it, scope) } ?: v },
-    selector = selector?.let { DslParser.mapSelector(it) { s -> Templates.render(s, scope) } }
+    selector = selector?.let { DslParser.mapSelector(it) { s -> Templates.render(s, scope) } },
+    target = target?.map { s -> Templates.render(s, scope) }
 )

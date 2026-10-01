@@ -186,6 +186,11 @@ class Interpreter(
     private fun eval(condition: Condition, scope: Scope, run: Run): Boolean = when (condition) {
         is Condition.Exists -> resolves(condition.selector, scope, run)
         is Condition.NotExists -> !resolves(condition.selector, scope, run)
+        is Condition.TargetExists -> {
+            val target = condition.target.map { Templates.render(it, scope) }
+            val found = run.context.targetResolver.resolve(target, run.context.snapshot()) is com.proj.automation.resolve.Resolution.Found
+            found != condition.negate
+        }
         is Condition.Equals -> Templates.render(condition.left, scope) == Templates.render(condition.right, scope)
         is Condition.Contains -> Templates.render(condition.haystack, scope).contains(Templates.render(condition.needle, scope))
         is Condition.IsSet -> scope.isSet(condition.variable)

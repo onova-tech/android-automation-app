@@ -2,13 +2,12 @@ package com.proj.automation.engine.actions
 
 import com.proj.automation.engine.ActionContext
 import com.proj.automation.engine.ActionHandler
-import com.proj.automation.engine.ErrorCode
 import com.proj.automation.engine.models.StepResult
 import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Step
 
 /**
- * Reads the text of the element matched by the selector. Falls back to the content
+ * Reads the text of the element matched by the selector or target. Falls back to the content
  * description, which is where Flutter apps (e.g. Nubank) expose their labels and values.
  * The value is returned in `details["value"]`; the DSL binds it with `into: <variable>`.
  */
@@ -19,28 +18,25 @@ class ReadTextHandler : ActionHandler {
         val startTime = System.currentTimeMillis()
         context.throwIfCancelled()
 
-        val selector = step.selector
-            ?: return StepResult(
+        val found = when (val lookup = context.locate(step)) {
+            is ActionContext.Lookup.Missing -> return StepResult(
                 stepIndex = 0, action = actionType, success = false,
                 durationMs = System.currentTimeMillis() - startTime,
-                errorMessage = "read_text requires a selector"
+                errorMessage = lookup.message,
+                errorCode = lookup.code
             )
+            is ActionContext.Lookup.Found -> lookup
+        }
 
-        val node = context.selectorEngine.resolve(selector, context.automation.getRootNode())
-            ?: return StepResult(
-                stepIndex = 0, action = actionType, success = false,
-                durationMs = System.currentTimeMillis() - startTime,
-                errorMessage = "Element not found",
-                errorCode = ErrorCode.E_NOT_FOUND
-            )
-
+        val node = found.node
         val value = node.text?.toString()?.takeIf { it.isNotEmpty() }
             ?: node.contentDescription?.toString()
             ?: ""
         return StepResult(
             stepIndex = 0, action = actionType, success = true,
             durationMs = System.currentTimeMillis() - startTime,
-            details = mapOf("value" to value)
+            strategy = found.strategy,
+            details = mapOf("value" to value, "confidence" to found.confidence)
         )
     }
 }

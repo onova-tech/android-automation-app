@@ -35,6 +35,8 @@ sealed class Node {
 sealed class Condition {
     data class Exists(val selector: Selector) : Condition()
     data class NotExists(val selector: Selector) : Condition()
+    /** `exists: { target: {...} }` — true only for a confident match, never a guess */
+    data class TargetExists(val target: com.proj.automation.resolve.Target, val negate: Boolean = false) : Condition()
     data class Equals(val left: String, val right: String) : Condition()
     data class Contains(val haystack: String, val needle: String) : Condition()
     data class IsSet(val variable: String) : Condition()

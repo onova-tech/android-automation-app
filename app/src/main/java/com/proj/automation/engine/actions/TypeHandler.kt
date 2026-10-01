@@ -21,7 +21,28 @@ class TypeHandler : ActionHandler {
         val text = step.parameters["text"] as? String
             ?: throw HandlerException("type requires 'text' parameter", actionType)
 
-        // Get the root node to find a focused EditText
+        // With a selector or target, type into that element
+        if (step.selector != null || step.target != null) {
+            return when (val lookup = context.locate(step)) {
+                is ActionContext.Lookup.Missing -> StepResult(
+                    stepIndex = 0, action = actionType, success = false,
+                    durationMs = System.currentTimeMillis() - startTime,
+                    errorMessage = lookup.message, errorCode = lookup.code
+                )
+                is ActionContext.Lookup.Found -> {
+                    val ok = context.automation.setText(lookup.node, text)
+                    StepResult(
+                        stepIndex = 0, action = actionType, success = ok,
+                        durationMs = System.currentTimeMillis() - startTime,
+                        errorMessage = if (ok) null else "Failed to set text on the element",
+                        strategy = lookup.strategy,
+                        details = mapOf("textLength" to text.length)
+                    )
+                }
+            }
+        }
+
+        // Otherwise, find the focused editable field
         val rootNode = context.automation.getRootNode()
         if (rootNode == null) {
             return StepResult(

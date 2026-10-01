@@ -9,6 +9,8 @@ enum class ErrorCode {
     E_NOT_FOUND,
     /** A step or wait exceeded its time limit */
     E_TIMEOUT,
+    /** Candidates exist but none clearly matches the target, so the engine refused to guess */
+    E_LOW_CONFIDENCE,
     /** A post-condition (`expect`) or `assert` was false */
     E_VERIFY_FAILED,
     /** The action ran and reported failure for another reason */
