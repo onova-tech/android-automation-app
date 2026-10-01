@@ -1,5 +1,7 @@
 # SMS Channel, Command Protocol and Security
 
+> SMS is the **first** contact channel. The command grammar, policy, risk levels and audit described here are shared by every channel; SMS-specific transport details live in the SMS adapter. See [channels.md](channels.md).
+
 | Field | Value |
 |-------|-------|
 | **Status** | Proposal (draft v0.2) — **needs a security review before any financial implementation** |

@@ -1,30 +1,35 @@
-# Vision and Target Architecture — SMS-Controlled Android Automation Layer
+# Vision and Target Architecture — Remotely Controlled Android Automation Layer
 
 | Field | Value |
 |-------|-------|
 | **Status** | Proposal (draft v0.2) — for review |
 | **Date** | 2026-09-30 |
-| **Context** | Evolution of the PROJ-000 POC (Phase 1) into a resilient, offline, SMS-controlled automation runtime with a plugin system |
+| **Context** | Evolution of the PROJ-000 POC (Phase 1) into a resilient, offline automation runtime with a plugin system, reachable through several contact channels (SMS first) |
 
 ## Document map
 
 | Document | Content |
 |----------|---------|
+| [decision-report.md](decision-report.md) | **Start here:** consolidated decisions, their status, and what the owner still needs to answer |
 | **README.md** (this file) | Vision, decisions taken, principles, layered architecture, end-to-end flow, agent device provisioning |
 | [plugins.md](plugins.md) | Plugin system: declarative YAML plugins, manifest, capabilities, secrets, lifecycle, trust model |
 | [laya-resolution.md](laya-resolution.md) | How Laya fits into element resolution, including the OCR path and the model's real limits |
 | [action-catalog.md](action-catalog.md) | New actions, DSL v2 |
+| [channels.md](channels.md) | Contact channels: channel-neutral envelope, adapters, trust profiles; SMS is the first channel |
 | [sms-security.md](sms-security.md) | SMS channel, command protocol, printed one-time-code sheet, threat model, bank transfers |
 | [roadmap-risks.md](roadmap-risks.md) | Phases, validation spikes, risks, open decisions |
 | [spike-04-nubank.md](spike-04-nubank.md) | Spike 4 results so far: Nubank exposes balance and statement in the tree; login uses the system credential prompt |
 | [ADR-006](../adr/ADR-006-laya-decision-layer.md) | Proposed decision: Laya as local decision layer |
 | [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) | Proposed decision: declarative YAML plugins, intelligence in the base app |
+| [ADR-008](../adr/ADR-008-channel-abstraction.md) | Proposed decision: channel abstraction, SMS as the first channel |
 
 ---
 
 ## 1. Vision
 
-A dedicated **agent Android phone**, powered on 24x7 in a safe place, receives **SMS commands** from a **dumbphone** and carries out the matching actions in the installed apps (WhatsApp, Telegram, a bank app, …) on its own. The result comes back by SMS.
+A dedicated **agent Android phone**, powered on 24x7 in a safe place, receives commands through a **contact channel** and carries out the matching actions in the installed apps (WhatsApp, Telegram, a bank app, …) on its own. The result comes back through the same channel.
+
+The **first channel is SMS from a dumbphone**. Other channels can be added later without changing the command language, plugins or engine ([channels.md](channels.md)).
 
 The user carries only the dumbphone (calls and SMS). Everything that needs a smartphone happens on the agent device.
 
@@ -75,6 +80,7 @@ The user carries only the dumbphone (calls and SMS). Everything that needs a sma
 | D7 | First banking scope | **Read-only: balance and statement.** No transfer skill in the first version | Confirmed by owner |
 | D8 | WhatsApp account | A **dedicated number** used only for this automation, on a device where the main account never ran. It is the **same number** that receives the SMS commands, so the command number is known to everyone the WhatsApp account talks to (see T17 in [sms-security.md](sms-security.md)) | Confirmed by owner |
 | D9 | Lock screen | **Secure PIN lock on the agent phone** (not a pattern). Nubank login requires the device credential, so "no lock" is not an option. The agent types the PIN into the system prompt from a stored secret; after a reboot it needs a human to unlock it | Decided on 2026-10-01 from [spike-04-nubank.md](spike-04-nubank.md); typing the PIN through our service is still untested |
+| D10 | Contact channels | **SMS is the first channel, not the only one.** A channel gateway with adapters and trust profiles lets other channels be added later; admin operations stay on-device only | Owner requirement (2026-10-01); design in [channels.md](channels.md), ADR-008 |
 
 ---
 
@@ -97,8 +103,8 @@ The user carries only the dumbphone (calls and SMS). Everything that needs a sma
 
 ```mermaid
 flowchart TB
-  subgraph L1[L1 · Channel]
-    SMSIn[SmsReceiver] --- SMSOut[SmsSender + segmentation]
+  subgraph L1[L1 · Channels]
+    GW[Channel gateway<br/>envelope, dedupe, rate limit] --- SMS[SMS adapter<br/>first channel] --- LUI[On-device admin UI] --- Next[Future adapters]
   end
   subgraph L2[L2 · Security]
     Auth[Code-sheet authenticator] --- Pol[PolicyEngine<br/>risk levels, limits] --- Vault[Keystore vault] --- Audit[Hash-chained audit]
@@ -131,7 +137,7 @@ flowchart TB
 | Layer | Exists today (POC) | New / to evolve |
 |-------|--------------------|-----------------|
 | L0 | `AutomationService`, `AutomationBridge` | `NotificationListenerService`, `dispatchGesture`, screenshot (API 30+) |
-| L1 | — | SMS receive/send, segmentation, rate limits |
+| L1 | — | Channel gateway and adapters ([channels.md](channels.md)); SMS adapter (receive/send, segmentation, rate limits) and on-device admin UI first |
 | L2 | — | Everything (see [sms-security.md](sms-security.md)) |
 | L3 | — | Command grammar, dialogue, aliases |
 | L4 | `YamlParser`, `Workflow` | **Plugin host** (manifest, capabilities, secrets, lifecycle), DSL v2, job queue |

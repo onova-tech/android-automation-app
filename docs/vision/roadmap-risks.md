@@ -37,9 +37,9 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 **Exit:** a real WhatsApp flow runs from a YAML plugin through a **local interface** (no SMS), with post-condition verification.
 
-### Phase 3 — SMS channel and base security
+### Phase 3 — Channel gateway, SMS channel and base security
 
-- L1 (SMS), L2 (code sheet, policy, audit, vault), L3 (grammar, dialogue, aliases).
+- L1: channel gateway + **SMS adapter** + on-device admin UI ([channels.md](channels.md)); L2 (code sheet, policy with channel trust profiles, audit, vault); L3 (channel-neutral grammar, dialogue, aliases).
 - Admin mode (device lock + app PIN) and the plugin install/approve flow.
 - `NotificationListener`, `reply_notification`, deeplinks.
 - WhatsApp plugin with skills up to risk level 3.
@@ -138,5 +138,5 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 1. Choose the agent phone (open item 1) and the dumbphone (open item 8).
 2. On the agent phone, finish Spike 4 (our service + PIN in the system prompt), then Spikes 3 and 6. Spike 1 can run on the S20 FE now (read-only performance test, no secrets).
-3. Approve [ADR-006](../adr/ADR-006-laya-decision-layer.md) and [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md), or adjust them with spike results.
+3. Approve [ADR-006](../adr/ADR-006-laya-decision-layer.md), [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) and [ADR-008](../adr/ADR-008-channel-abstraction.md), or adjust them with spike results.
 4. Only then break Phase 2 into tickets.
