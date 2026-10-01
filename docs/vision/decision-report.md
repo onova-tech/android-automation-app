@@ -79,7 +79,7 @@ Grouped by what blocks what. Answer the **blocking** ones first; the rest can co
 |---|----------|----------------|-------------------|
 | D1 | **Which phone will be the agent?** Pick a model, or approve these criteria and I will propose models: still receiving security updates, ≥ 6 GB RAM, Samsung or Pixel. **Trade-off:** a patched phone will run Android 14+, which adds rules that let apps hide screens from automation | Spike 4 completion, Spikes 3 and 6, all device work | A recent mid-range Samsung or Pixel still under updates; accept Android 14+ and test early |
 | D2 | ~~Approve ADRs 006, 007, 008~~ **Answered 2026-10-01: accepted.** | — | — |
-| D3 | **Autonomy.** Answered 2026-10-01: commit and push without asking; branches `feature/<name>`; **Phase 2 may start now.** Still open: should finished branches become pull requests, or do I merge them myself? | Merging feature branches | Pull requests for anything touching security or banking; direct merge for docs |
+| D3 | ~~Autonomy~~ **Answered 2026-10-01:** commit and push without asking; branches `feature/<name>`; Phase 2 started; **finished feature branches become pull requests**; keep working without waiting for check-ins. | — | — |
 
 ### 3.2 Blocking — actions only you can do
 
