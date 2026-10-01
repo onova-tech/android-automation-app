@@ -9,18 +9,18 @@ import com.proj.automation.parser.Step
 import kotlinx.coroutines.delay
 
 /**
- * Polls a selector until the element is found or timeout expires.
+ * Polls until the step's target is found or the timeout expires.
  */
 class WaitForHandler : ActionHandler {
     override val actionType = ActionType.WAIT_FOR
 
     override suspend fun execute(step: Step, context: ActionContext): StepResult {
         val startTime = System.currentTimeMillis()
-        if (step.selector == null && step.target == null) {
+        if (step.target == null) {
             return StepResult(
                 stepIndex = 0, action = actionType, success = false,
                 durationMs = System.currentTimeMillis() - startTime,
-                errorMessage = "wait_for requires a selector or target"
+                errorMessage = "wait_for requires a target"
             )
         }
 

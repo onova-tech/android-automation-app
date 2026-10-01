@@ -1,0 +1,165 @@
+package com.proj.automation.agent
+
+import android.content.Context
+import com.proj.automation.plugin.Plugin
+import com.proj.automation.plugin.PluginLoader
+import com.proj.automation.plugin.PluginPackageException
+import com.proj.automation.security.AuditEntry
+import com.proj.automation.security.AuthState
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+
+/** An approved plugin: the command keyword the owner chose and the package hash they approved. */
+data class InstalledPlugin(val keyword: String, val plugin: Plugin)
+
+/** Settings changed only in admin mode on the phone. */
+data class AgentSettings(
+    val allowedSenders: Set<String> = emptySet(),
+    val sheetId: Int = 0,
+    val sheetSize: Int = 100,
+    /** Set by the STOP command; only the on-device admin UI clears it */
+    val stopped: Boolean = false
+)
+
+/**
+ * Local persistence in the app's private storage (encrypted by the device until first unlock).
+ * Approved packages are re-verified on every load: if the bytes on disk no longer match the
+ * approved hash, the plugin is dropped instead of loaded.
+ */
+class AgentStore(context: Context) {
+
+    private val dir = File(context.filesDir, "agent").apply { mkdirs() }
+    private val pluginsDir = File(dir, "plugins").apply { mkdirs() }
+    private val pluginsIndex = File(dir, "plugins.json")
+    private val settingsFile = File(dir, "settings.json")
+    private val authFile = File(dir, "auth.json")
+    private val auditFile = File(dir, "audit.jsonl")
+
+    // ——— Plugins ———
+
+    fun loadPlugins(): Pair<List<InstalledPlugin>, List<String>> {
+        val index = readJson(pluginsIndex) ?: return emptyList<InstalledPlugin>() to emptyList()
+        val loaded = mutableListOf<InstalledPlugin>()
+        val problems = mutableListOf<String>()
+        for (keyword in index.keys()) {
+            val entry = index.getJSONObject(keyword)
+            val file = File(pluginsDir, "$keyword.agp")
+            try {
+                val plugin = PluginLoader.load(file.readBytes())
+                if (plugin.packageHash != entry.getString("hash")) {
+                    problems += "$keyword: package changed on disk since it was approved; not loaded"
+                } else {
+                    loaded += InstalledPlugin(keyword, plugin)
+                }
+            } catch (e: PluginPackageException) {
+                problems += "$keyword: ${e.message}"
+            } catch (e: java.io.IOException) {
+                problems += "$keyword: ${e.message}"
+            }
+        }
+        return loaded to problems
+    }
+
+    fun installPlugin(keyword: String, bytes: ByteArray, plugin: Plugin) {
+        File(pluginsDir, "$keyword.agp").writeBytes(bytes)
+        val index = readJson(pluginsIndex) ?: JSONObject()
+        index.put(keyword, JSONObject().put("id", plugin.manifest.id).put("hash", plugin.packageHash))
+        writeAtomically(pluginsIndex, index.toString(2))
+    }
+
+    fun removePlugin(keyword: String) {
+        File(pluginsDir, "$keyword.agp").delete()
+        val index = readJson(pluginsIndex) ?: return
+        index.remove(keyword)
+        writeAtomically(pluginsIndex, index.toString(2))
+    }
+
+    // ——— Settings ———
+
+    fun settings(): AgentSettings {
+        val json = readJson(settingsFile) ?: return AgentSettings()
+        val senders = json.optJSONArray("allowedSenders") ?: JSONArray()
+        return AgentSettings(
+            allowedSenders = (0 until senders.length()).map { senders.getString(it) }.toSet(),
+            sheetId = json.optInt("sheetId", 0),
+            sheetSize = json.optInt("sheetSize", 100),
+            stopped = json.optBoolean("stopped", false)
+        )
+    }
+
+    fun saveSettings(s: AgentSettings) = writeAtomically(
+        settingsFile,
+        JSONObject()
+            .put("allowedSenders", JSONArray(s.allowedSenders.sorted()))
+            .put("sheetId", s.sheetId)
+            .put("sheetSize", s.sheetSize)
+            .put("stopped", s.stopped)
+            .toString(2)
+    )
+
+    // ——— Authentication state ———
+
+    fun authState(sheetId: Int): AuthState {
+        val json = readJson(authFile) ?: return AuthState(sheetId)
+        if (json.optInt("sheetId", -1) != sheetId) return AuthState(sheetId)
+        val used = json.optJSONArray("used") ?: JSONArray()
+        return AuthState(
+            sheetId = sheetId,
+            used = (0 until used.length()).map { used.getInt(it) }.toSet(),
+            consecutiveFailures = json.optInt("consecutiveFailures"),
+            totalFailures = json.optInt("totalFailures"),
+            lockouts = json.optInt("lockouts"),
+            lockedUntil = json.optLong("lockedUntil"),
+            hardLocked = json.optBoolean("hardLocked")
+        )
+    }
+
+    fun saveAuthState(a: AuthState) = writeAtomically(
+        authFile,
+        JSONObject()
+            .put("sheetId", a.sheetId)
+            .put("used", JSONArray(a.used.sorted()))
+            .put("consecutiveFailures", a.consecutiveFailures)
+            .put("totalFailures", a.totalFailures)
+            .put("lockouts", a.lockouts)
+            .put("lockedUntil", a.lockedUntil)
+            .put("hardLocked", a.hardLocked)
+            .toString()
+    )
+
+    // ——— Audit ———
+
+    fun auditEntries(): List<AuditEntry> =
+        if (!auditFile.exists()) emptyList() else auditFile.readLines().filter { it.isNotBlank() }.map { line ->
+            val j = JSONObject(line)
+            AuditEntry(
+                j.getLong("seq"), j.getLong("time"), j.getString("channel"), j.getString("sender"),
+                j.getString("event"), j.getString("detail"), j.getString("prevHash"), j.getString("hash")
+            )
+        }
+
+    fun appendAudit(entries: List<AuditEntry>) {
+        if (entries.isEmpty()) return
+        auditFile.appendText(entries.joinToString("") { e ->
+            JSONObject()
+                .put("seq", e.seq).put("time", e.time).put("channel", e.channel).put("sender", e.sender)
+                .put("event", e.event).put("detail", e.detail).put("prevHash", e.prevHash).put("hash", e.hash)
+                .toString() + "\n"
+        })
+    }
+
+    // ——— Helpers ———
+
+    private fun readJson(file: File): JSONObject? =
+        if (file.exists()) JSONObject(file.readText()) else null
+
+    private fun writeAtomically(file: File, text: String) {
+        val tmp = File(file.parentFile, file.name + ".tmp")
+        tmp.writeText(text)
+        if (!tmp.renameTo(file)) {
+            file.delete()
+            tmp.renameTo(file)
+        }
+    }
+}

@@ -102,6 +102,15 @@ class ChannelTest {
         assertNull(ArgsTemplate(null).match("unexpected"))
     }
 
+    @Test
+    fun `phone numbers match across formats`() {
+        val allowed = setOf("+55 11 99999-8888")
+        assertEquals("+55 11 99999-8888", PhoneNumbers.matchAllowed("+5511999998888", allowed))
+        assertEquals("+55 11 99999-8888", PhoneNumbers.matchAllowed("11999998888", allowed))
+        assertNull(PhoneNumbers.matchAllowed("+5511999998887", allowed))
+        assertNull(PhoneNumbers.matchAllowed("8888", allowed))
+    }
+
     // ——— Policy and replies ———
 
     @Test
@@ -221,6 +230,16 @@ class ChannelTest {
         assertTrue(page.contains("(3 codes left)"), page)
         assertEquals("No more", text(send("MORE")))
         assertEquals(first, text(send("RESEND")))
+    }
+
+    @Test
+    fun `the on-device console needs no code and burns none`() {
+        val local = ChannelConfig("local", TrustProfile.PHYSICAL, ChannelCapabilities.LOCAL_UI, setOf("owner"))
+        val run = router.handle(Envelope("local", "owner", "WA SEND 1: hi", 1), local, state) as Outcome.Run
+        assertEquals(0, run.request.commandId)
+        assertTrue(state.auth.used.isEmpty())
+        // risk 5 runs directly when the owner is at the phone
+        assertTrue(router.handle(Envelope("local", "owner", "BANK TRANSFER 5 x", 2), local, state) is Outcome.Run)
     }
 
     @Test

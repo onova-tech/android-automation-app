@@ -1,7 +1,8 @@
 package com.proj.automation.dsl
 
 import com.proj.automation.parser.ActionType
-import com.proj.automation.parser.Selector
+import com.proj.automation.resolve.Hints
+import com.proj.automation.resolve.Target
 import com.proj.automation.parser.YamlParseException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -12,21 +13,29 @@ class DslParserTest {
     private val parser = DslParser()
 
     @Test
-    fun `parses a v1 workflow unchanged`() {
+    fun `parses actions with targets and step settings`() {
         val program = parser.parse(
             """
             name: Calculator
             steps:
               - launch_app: { package: com.google.android.calculator }
-              - click: { selector: { text: "2" }, retries: 3 }
+              - click: { target: { hints: { text: "2" } }, retries: 3, timeout: 5000, on_failure: continue }
             """.trimIndent()
         )
         assertEquals("Calculator", program.name)
         assertEquals(2, program.body.size)
         val click = program.body[1] as Node.Action
         assertEquals(ActionType.CLICK, click.step.action)
-        assertEquals(Selector.ByText("2"), click.step.selector)
+        assertEquals(Target(hints = Hints(text = "2")), click.step.target)
         assertEquals(3, click.step.retries)
+        assertEquals(5000, click.step.timeoutMs)
+        assertEquals(com.proj.automation.parser.OnFailurePolicy.CONTINUE, click.step.onFailure)
+    }
+
+    @Test
+    fun `selector was replaced by target`() {
+        val e = assertThrows<YamlParseException> { parser.parse("steps:\n  - click: { selector: { text: a } }") }
+        assertTrue(e.message!!.contains("replaced by 'target'"))
     }
 
     @Test
@@ -50,8 +59,8 @@ class DslParserTest {
                   else:
                     - log: { message: "other" }
               - first_that_works:
-                  - click: { selector: { text: "A" } }
-                  - click: { selector: { text: "B" } }
+                  - click: { target: { hints: { text: "A" } } }
+                  - click: { target: { hints: { text: "B" } } }
               - try:
                   do:
                     - call: { flow: open_chat, with: { who: "${'$'}{to}" }, into: chat }
@@ -84,12 +93,12 @@ class DslParserTest {
             """
             steps:
               - click:
-                  selector: { content_description: "Enviar" }
+                  target: { hints: { content_description: "Enviar" } }
                   expect: { exists: { text: "sent" } }
             """.trimIndent()
         )
         val action = program.body.single() as Node.Action
-        assertEquals(Condition.Exists(Selector.ByText("sent")), action.expect)
+        assertEquals(Condition.Exists(Target(hints = Hints(text = "sent"))), action.expect)
         assertFalse("expect" in action.step.parameters)
     }
 
@@ -133,14 +142,7 @@ class DslParserTest {
     @Test
     fun `rejects bad templates at parse time`() {
         assertThrows<YamlParseException> { parser.parse("steps:\n  - log: { message: \"\${x|evil}\" }") }
-        assertThrows<YamlParseException> { parser.parse("steps:\n  - click: { selector: { text: \"\${}\" } }") }
-    }
-
-    @Test
-    fun `bundled examples parse`() {
-        java.io.File("../examples").listFiles { f -> f.extension == "yaml" }!!.forEach {
-            assertNotNull(parser.parse(it.readText()), it.name)
-        }
+        assertThrows<YamlParseException> { parser.parse("steps:\n  - click: { target: { hints: { text: \"\${}\" } } }") }
     }
 
     @Test

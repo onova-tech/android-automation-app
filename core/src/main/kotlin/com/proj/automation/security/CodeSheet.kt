@@ -98,6 +98,8 @@ class CodeVerifier(
         return AuthResult.Accepted(index, sheet.size - next.used.size) to next
     }
 
+    fun remaining(state: AuthState): Int = sheet.size - state.used.size
+
     private fun failed(state: AuthState, now: Long): AuthState {
         val consecutive = state.consecutiveFailures + 1
         val total = state.totalFailures + 1

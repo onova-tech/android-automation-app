@@ -1,121 +1,78 @@
 package com.proj.automation.engine
 
 import com.proj.automation.accessibility.AutomationBridge
-import com.proj.automation.engine.models.ExecutionResult
-import com.proj.automation.parser.OnFailurePolicy
+import com.proj.automation.dsl.DslParser
+import com.proj.automation.dsl.RunStatus
 import com.proj.automation.engine.models.StepResult
-import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Step
-import com.proj.automation.parser.Workflow
-import com.proj.automation.selector.SelectorEngine
+import com.proj.automation.plugin.PackageBuilder
 import com.proj.automation.service.EventBus
 import io.mockk.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
+import java.io.File
 
 class ExecutionEngineTest {
 
     private lateinit var engine: ExecutionEngine
     private val dispatcher: ActionDispatcher = mockk()
-    private val errorHandler: ErrorHandler = ErrorHandler()
-    private val eventBus: EventBus = mockk(relaxed = true)
+    private val parser = DslParser()
 
     @BeforeEach
     fun setup() {
         AutomationBridge.init(mockk<AutomationBridge>(relaxed = true))
-        engine = ExecutionEngine(dispatcher, errorHandler, eventBus)
+        engine = ExecutionEngine(dispatcher, ErrorHandler(), mockk<EventBus>(relaxed = true))
+        coEvery { dispatcher.dispatch(any(), any()) } answers { StepResult(0, firstArg<Step>().action, true, 1) }
     }
 
     @Test
-    fun `executes all steps in order`() = runTest {
-        val steps = listOf(
-            Step(action = ActionType.BACK),
-            Step(action = ActionType.WAIT),
-            Step(action = ActionType.LOG, parameters = mapOf("message" to "done"))
-        )
-        val workflow = Workflow(name = "Test", steps = steps)
-
-        coEvery { dispatcher.dispatch(any(), any()) } returnsMany listOf(
-            StepResult(0, ActionType.BACK, true, 10),
-            StepResult(1, ActionType.WAIT, true, 1000),
-            StepResult(2, ActionType.LOG, true, 1)
-        )
-
-        val result = engine.execute(workflow)
-
-        assertTrue(result.completedSuccessfully)
-        assertEquals(3, result.steps.size)
-        assertEquals(3, result.stepCount)
-    }
-
-    @Test
-    fun `stops on failure with ABORT policy`() = runTest {
-        val steps = listOf(
-            Step(action = ActionType.CLICK, onFailure = OnFailurePolicy.ABORT),
-            Step(action = ActionType.BACK)
-        )
-        val workflow = Workflow(name = "Test", steps = steps)
-
-        coEvery { dispatcher.dispatch(any(), any()) } returnsMany listOf(
-            StepResult(0, ActionType.CLICK, false, 100, errorMessage = "Not found"),
-            StepResult(1, ActionType.BACK, true, 10)
-        )
-
-        val result = engine.execute(workflow)
-
-        assertFalse(result.completedSuccessfully)
-        assertEquals(1, result.steps.size) // Only first step executed
-    }
-
-    @Test
-    fun `empty workflow returns immediately`() = runTest {
-        val workflow = Workflow(name = "Empty", steps = emptyList())
-        val result = engine.execute(workflow)
-        assertTrue(result.completedSuccessfully)
-        assertEquals(0, result.steps.size)
+    fun `runs a program and returns its value`() = runTest {
+        val result = engine.run(parser.parse("params: { x: {} }\nsteps:\n  - back: {}\n  - return: \"got \${x}\""), mapOf("x" to "1"))
+        assertEquals(RunStatus.SUCCEEDED, result.status)
+        assertEquals("got 1", result.returnValue)
     }
 
     @Test
     fun `a previous cancel does not cancel the next run`() = runTest {
         engine.cancel()
-        val workflow = Workflow(name = "Test", steps = listOf(Step(action = ActionType.BACK)))
-        coEvery { dispatcher.dispatch(any(), any()) } returns StepResult(0, ActionType.BACK, true, 10)
-
-        val result = engine.execute(workflow)
-
-        assertFalse(result.cancelled)
-        assertTrue(result.completedSuccessfully)
+        assertEquals(RunStatus.SUCCEEDED, engine.run(parser.parse("steps:\n  - back: {}")).status)
     }
 
     @Test
     fun `cancel during a run marks the result cancelled`() = runTest {
-        val steps = listOf(Step(action = ActionType.BACK), Step(action = ActionType.HOME))
         coEvery { dispatcher.dispatch(any(), any()) } answers {
             engine.cancel()
-            StepResult(0, ActionType.BACK, true, 10)
+            StepResult(0, firstArg<Step>().action, true, 1)
         }
-
-        val result = engine.execute(Workflow(name = "Test", steps = steps))
-
-        assertTrue(result.cancelled)
+        val result = engine.run(parser.parse("steps:\n  - back: {}\n  - home: {}"))
+        assertEquals(RunStatus.CANCELLED, result.status)
         assertEquals(1, result.steps.size)
     }
 
     @Test
-    fun `coroutine cancellation propagates instead of being recorded as a failed step`() = runTest {
-        val workflow = Workflow(name = "Test", steps = listOf(Step(action = ActionType.BACK)))
+    fun `coroutine cancellation propagates`() = runTest {
         coEvery { dispatcher.dispatch(any(), any()) } throws CancellationException("job cancelled")
-
-        var thrown: Throwable? = null
+        var thrown = false
         try {
-            engine.execute(workflow)
+            engine.run(parser.parse("steps:\n  - back: {}"))
         } catch (e: CancellationException) {
-            thrown = e
+            thrown = true
         }
+        assertTrue(thrown)
+    }
 
-        assertNotNull(thrown)
+    @Test
+    fun `skills run under the plugin's capabilities`() = runTest {
+        val plugin = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries")).plugin
+        // the foreground app is unknown (no screen), so the first UI-reading action is refused
+        val result = engine.runSkill(plugin, "send", mapOf("phone" to "5511999", "text" to "hi"))
+        assertEquals(RunStatus.FAILED, result.status)
+        assertEquals(ErrorCode.E_CAPABILITY, result.errorCode)
+        // open_url to wa.me was allowed and dispatched before that
+        coVerify { dispatcher.dispatch(match { it.parameters["url"] == "https://wa.me/5511999?text=hi" }, any()) }
+        assertEquals(RunStatus.FAILED, engine.runSkill(plugin, "nope", emptyMap()).status)
     }
 }

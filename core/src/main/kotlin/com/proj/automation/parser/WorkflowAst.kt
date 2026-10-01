@@ -1,24 +1,16 @@
 package com.proj.automation.parser
 
-/**
- * Top-level workflow object representing a parsed YAML workflow.
- */
-data class Workflow(
-    val name: String? = null,
-    val description: String? = null,
-    val steps: List<Step> = emptyList(),
-    val variables: Map<String, String> = emptyMap()
-)
+import com.proj.automation.resolve.Target
 
 /**
- * A single step in a workflow — contains exactly one action with parameters.
+ * One action of a skill or flow, with its parameters, the element it acts on ([target]) and its
+ * retry/timeout/failure settings. Control flow around actions lives in [com.proj.automation.dsl.Node].
  */
 data class Step(
     val action: ActionType,
     val parameters: Map<String, Any?> = emptyMap(),
-    val selector: Selector? = null,
-    /** DSL v2 target (intent + hints); resolved by [com.proj.automation.resolve.TargetResolver] */
-    val target: com.proj.automation.resolve.Target? = null,
+    /** Element the action works on; resolved by [com.proj.automation.resolve.TargetResolver] */
+    val target: Target? = null,
     val retries: Int = 1,
     val retryDelayMs: Long = 1000,
     val timeoutMs: Long = 30000,

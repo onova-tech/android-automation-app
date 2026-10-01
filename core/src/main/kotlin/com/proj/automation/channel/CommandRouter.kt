@@ -127,7 +127,7 @@ class CommandRouter(
             log("cancel", if (had) "pending confirmation dropped" else "nothing pending")
             reply(if (had) "Cancelled" else "Nothing to cancel")
         }
-        GlobalVerb.STATUS -> when (val a = authenticate(cmd.auth, env, state, log)) {
+        GlobalVerb.STATUS -> when (val a = authenticate(cmd.auth, env, channel, state, log)) {
             is AuthResult.Accepted -> reply("OK. ${a.remaining} codes left. Plugins: ${plugins.keys.sorted().joinToString()}")
             else -> reply("Not accepted")
         }
@@ -137,7 +137,7 @@ class CommandRouter(
                 pending == null -> reply("Nothing to confirm")
                 env.receivedAt > pending.expiresAt -> { state.pending.remove(env.sender); log("confirm", "expired"); reply("Expired. Send the command again") }
                 cmd.argument?.trim() != pending.word -> { log("confirm", "wrong word"); reply("Not accepted") }
-                else -> when (val a = authenticate(cmd.auth, env, state, log)) {
+                else -> when (val a = authenticate(cmd.auth, env, channel, state, log)) {
                     is AuthResult.Accepted -> {
                         state.pending.remove(env.sender)
                         log("confirmed", pending.request.summary)
@@ -169,7 +169,7 @@ class CommandRouter(
             log("invalid", "bad arguments for ${cmd.keyword} ${cmd.verb}")
             return reply("Usage: ${cmd.keyword} ${cmd.verb}${command.args?.let { " $it" } ?: ""} #n-code")
         }
-        val auth = authenticate(cmd.auth, env, state, log)
+        val auth = authenticate(cmd.auth, env, channel, state, log)
         val accepted = auth as? AuthResult.Accepted
         val request = RunRequest(plugin, command.skill, args, accepted?.index ?: 0, summary, accepted?.remaining ?: 0)
 
@@ -193,7 +193,13 @@ class CommandRouter(
 
     // ——— Helpers ———
 
-    private fun authenticate(code: AuthCode?, env: Envelope, state: RouterState, log: (String, String) -> Any): AuthResult {
+    private fun authenticate(
+        code: AuthCode?, env: Envelope, channel: ChannelConfig, state: RouterState, log: (String, String) -> Any
+    ): AuthResult {
+        // On the phone itself the device lock is the authentication; no code is used or burned
+        if (channel.trust == TrustProfile.PHYSICAL && channel.capabilities.senderAuthenticated) {
+            return AuthResult.Accepted(index = 0, remaining = verifier.remaining(state.auth))
+        }
         if (code == null) {
             log("auth", "missing code")
             return AuthResult.Rejected("Missing code")

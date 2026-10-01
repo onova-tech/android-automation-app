@@ -21,6 +21,7 @@ object Replies {
         ErrorCode.E_CAPABILITY -> "Plugin not permitted to do that"
         ErrorCode.E_EXPR -> "Plugin error"
         ErrorCode.E_BUDGET -> "Took too long"
+        ErrorCode.E_DEVICE -> "Phone unavailable for automation"
         ErrorCode.E_CANCELLED -> "Stopped"
         ErrorCode.E_ACTION_FAILED, null -> "Failed"
     }
