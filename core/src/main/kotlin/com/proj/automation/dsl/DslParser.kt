@@ -1,14 +1,15 @@
 package com.proj.automation.dsl
 
-import com.proj.automation.parser.Selector
+import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Step
 import com.proj.automation.parser.YamlParseException
 import com.proj.automation.parser.YamlParser
+import com.proj.automation.resolve.Target
 
 /**
- * Parses DSL v2 programs. Accepts every v1 workflow unchanged; adds control-flow steps
+ * Parses the workflow language used by plugin skills and flows: actions, control flow
  * (`sequence`, `if`, `first_that_works`, `try`, `call`, `set`, `assert`, `return`),
- * `expect` post-conditions on actions, `into` bindings, `params` and reusable `flows`.
+ * `expect` post-conditions, `into` bindings, `params` and reusable `flows`.
  *
  * Everything that can be checked statically is checked here: template syntax and filters,
  * condition shapes, unknown flows and recursive flow calls.
@@ -44,13 +45,50 @@ class DslParser(
             name = doc["name"] as? String,
             description = doc["description"] as? String,
             params = parseParams(doc["params"], "params"),
-            variables = (doc["variables"] as? Map<*, *>).orEmpty()
-                .entries.associate { it.key.toString() to it.value.toString() },
             flows = flows + externalFlows,
             body = parseSteps(doc["steps"], "steps")
         )
         checkCalls(program)
         return program
+    }
+
+    // ——— Interrupt rules ———
+
+    /**
+     * Parses `interrupts.yaml`: `rules:` with `name`, `when` (a condition), `do` (steps) and an
+     * optional `max_per_run` (default 2). Rule steps are limited to a few harmless actions.
+     */
+    fun parseInterrupts(doc: Map<String, Any?>): List<InterruptRule> {
+        if (doc.keys != setOf("rules")) fail("interrupts", "must contain only a 'rules' list")
+        val rules = doc["rules"] as? List<*> ?: fail("interrupts.rules", "must be a list")
+        val names = mutableSetOf<String>()
+        return rules.mapIndexed { i, raw ->
+            val path = "interrupts.rules[$i]"
+            val r = raw as? Map<*, *> ?: fail(path, "must be a mapping")
+            val extra = r.keys.map { it.toString() } - setOf("name", "when", "do", "max_per_run")
+            if (extra.isNotEmpty()) fail(path, "unknown keys $extra")
+            val name = r["name"]?.toString() ?: fail(path, "missing 'name'")
+            if (!names.add(name)) fail(path, "duplicate rule name '$name'")
+            val condition = parseCondition(r["when"] as? Map<*, *> ?: fail("$path.when", "must be a condition"), "$path.when")
+            val body = parseSteps(r["do"] ?: fail(path, "missing 'do'"), "$path.do")
+            if (body.isEmpty()) fail("$path.do", "needs at least one step")
+            checkInterruptSteps(body, "$path.do")
+            val max = (r["max_per_run"] as? Number)?.toInt() ?: 2
+            if (max !in 1..10) fail("$path.max_per_run", "must be 1–10")
+            InterruptRule(name, condition, body, max)
+        }
+    }
+
+    private fun checkInterruptSteps(nodes: List<Node>, path: String) {
+        for (n in nodes) when (n) {
+            is Node.Action -> if (n.step.action !in INTERRUPT_ACTIONS) {
+                fail(path, "'${n.step.action.yamlValue}' is not allowed in an interrupt rule; allowed: ${INTERRUPT_ACTIONS.map { it.yamlValue }}")
+            }
+            is Node.Sequence -> checkInterruptSteps(n.nodes, path)
+            is Node.If -> { checkInterruptSteps(n.then, path); checkInterruptSteps(n.otherwise, path) }
+            is Node.FirstThatWorks -> checkInterruptSteps(n.alternatives, path)
+            else -> fail(path, "${n::class.simpleName?.lowercase()} is not allowed in an interrupt rule; use actions, sequence, if or first_that_works")
+        }
     }
 
     // ——— Steps ———
@@ -93,11 +131,11 @@ class DslParser(
                 val flow = m["flow"]?.toString() ?: fail("$path.call", "missing 'flow'")
                 val args = (m["with"] as? Map<*, *>).orEmpty()
                     .entries.associate { it.key.toString() to template(it.value, "$path.call.with.${it.key}") }
-                Node.Call(flow, args, m["into"]?.toString())
+                Node.Call(flow, args, m["into"]?.toString()?.let { variable(it, "$path.call.into") })
             }
             "set" -> {
                 val m = value as? Map<*, *> ?: fail("$path.set", "must be a mapping of variable: value")
-                Node.SetVars(m.entries.associate { it.key.toString() to template(it.value, "$path.set.${it.key}") })
+                Node.SetVars(m.entries.associate { variable(it.key.toString(), "$path.set") to template(it.value, "$path.set.${it.key}") })
             }
             "assert" -> {
                 val m = value as? Map<*, *> ?: fail("$path.assert", "must be a mapping")
@@ -125,7 +163,7 @@ class DslParser(
             fail(path, e.message ?: "invalid action")
         }
         step.parameters.forEach { (k, v) -> (v as? String)?.let { template(it, "$path.$key.$k") } }
-        step.selector?.let { selectorStrings(it).forEach { s -> template(s, "$path.$key.selector") } }
+        (step.parameters["into"] as? String)?.let { variable(it, "$path.$key.into") }
         step.target?.let { it.strings().forEach { s -> template(s, "$path.$key.target") } }
         return Node.Action(step, expect)
     }
@@ -144,21 +182,7 @@ class DslParser(
         val key = keys.first()
         val value = raw[key]
         return when (key) {
-            "exists", "not_exists" -> {
-                val negate = key == "not_exists"
-                val targetRaw = (value as? Map<*, *>)?.get("target")
-                    ?.let { if (it is String) namedTarget(it, "$path.$key.target") else it }
-                if (targetRaw != null) {
-                    val t = try {
-                        com.proj.automation.resolve.Target.parse(targetRaw as? Map<*, *> ?: fail("$path.$key.target", "must be a mapping"))
-                    } catch (e: IllegalArgumentException) {
-                        fail("$path.$key.target", e.message ?: "invalid target")
-                    }
-                    t.strings().forEach { template(it, "$path.$key.target") }
-                    Condition.TargetExists(t, negate)
-                } else if (negate) Condition.NotExists(selector(value, "$path.$key"))
-                else Condition.Exists(selector(value, "$path.$key"))
-            }
+            "exists", "not_exists" -> Condition.Exists(conditionTarget(value, "$path.$key"), negate = key == "not_exists")
             "screen_is" -> {
                 if (inScreen) fail("$path.screen_is", "screen signals cannot use screen_is")
                 val name = value?.toString() ?: fail("$path.screen_is", "needs a screen name")
@@ -184,10 +208,28 @@ class DslParser(
         }
     }
 
-    private fun selector(raw: Any?, path: String): Selector {
-        val s = yamlParser.parseSelector(raw as? Map<*, *>) ?: fail(path, "invalid selector")
-        selectorStrings(s).forEach { template(it, path) }
-        return s
+    /**
+     * The element a condition is about. Accepted forms: a named target (`exists: send_button`),
+     * `{ target: <name or mapping> }`, a target mapping (`{ intent: ..., role: ... }`), or just
+     * exact hints (`{ text: "OK" }`).
+     */
+    private fun conditionTarget(value: Any?, path: String): Target {
+        val raw: Map<*, *> = when {
+            value is String -> namedTarget(value, path)
+            value is Map<*, *> && "target" in value -> value["target"].let {
+                if (it is String) namedTarget(it, "$path.target") else it as? Map<*, *> ?: fail("$path.target", "must be a mapping or a name")
+            }
+            value is Map<*, *> && value.keys.all { it in HINT_KEYS } -> mapOf("hints" to value)
+            value is Map<*, *> -> value
+            else -> fail(path, "needs a target")
+        }
+        val target = try {
+            Target.parse(raw)
+        } catch (e: IllegalArgumentException) {
+            fail(path, e.message ?: "invalid target")
+        }
+        target.strings().forEach { template(it, path) }
+        return target
     }
 
     private fun pair(raw: Any?, path: String): Pair<String, String> {
@@ -198,10 +240,16 @@ class DslParser(
 
     // ——— Params, templates, flow calls ———
 
+    /** `t` holds the plugin's texts and cannot be assigned */
+    private fun variable(name: String, path: String): String {
+        if (name == RESERVED_TEXTS) fail(path, "'$RESERVED_TEXTS' is reserved for the plugin's texts")
+        return name
+    }
+
     private fun parseParams(raw: Any?, path: String): Map<String, ParamSpec> =
         (raw as? Map<*, *>).orEmpty().entries.associate { (k, v) ->
             val spec = v as? Map<*, *>
-            k.toString() to ParamSpec(
+            variable(k.toString(), path) to ParamSpec(
                 required = (spec?.get("required") as? Boolean) ?: (spec?.get("default") == null),
                 default = spec?.get("default")?.let { template(it, "$path.$k.default") }
             )
@@ -249,30 +297,16 @@ class DslParser(
         throw YamlParseException("$path: $message", line = 0, column = 0)
 
     companion object {
-        val TOP_LEVEL_KEYS = setOf("name", "description", "params", "variables", "flows", "steps")
+        const val RESERVED_TEXTS = "t"
+        val TOP_LEVEL_KEYS = setOf("name", "description", "params", "flows", "steps")
+        private val INTERRUPT_ACTIONS = setOf(ActionType.CLICK, ActionType.BACK, ActionType.WAIT, ActionType.WAIT_FOR, ActionType.LOG)
+        private val HINT_KEYS = setOf("text", "content_description", "resource_id")
         val CONDITION_KEYS = setOf("exists", "not_exists", "screen_is", "equals", "contains", "is_set", "not", "all", "any")
-
-        fun selectorStrings(selector: Selector): List<String> = when (selector) {
-            is Selector.ByText -> listOf(selector.text)
-            is Selector.ByResourceId -> listOf(selector.resourceId)
-            is Selector.ByContentDescription -> listOf(selector.description)
-            is Selector.ByClassName -> listOf(selector.className)
-            is Selector.Composite -> selector.fallbackOrder.flatMap { selectorStrings(it) }
-        }
-
-        fun mapSelector(selector: Selector, f: (String) -> String): Selector = when (selector) {
-            is Selector.ByText -> Selector.ByText(f(selector.text))
-            is Selector.ByResourceId -> Selector.ByResourceId(f(selector.resourceId))
-            is Selector.ByContentDescription -> Selector.ByContentDescription(f(selector.description))
-            is Selector.ByClassName -> selector.copy(className = f(selector.className))
-            is Selector.Composite -> Selector.Composite(selector.fallbackOrder.map { mapSelector(it, f) })
-        }
     }
 }
 
-/** Renders every template in a step's parameters, selector and target */
+/** Renders every template in a step's parameters and target */
 fun Step.rendered(scope: Scope): Step = copy(
     parameters = parameters.mapValues { (_, v) -> (v as? String)?.let { Templates.render(it, scope) } ?: v },
-    selector = selector?.let { DslParser.mapSelector(it) { s -> Templates.render(s, scope) } },
     target = target?.map { s -> Templates.render(s, scope) }
 )

@@ -127,12 +127,13 @@ Candidate libraries:
 | Piece | Status |
 |-------|--------|
 | Safe unpacker, `PACKAGE.lock`, manifest, flows, skills, commands, named targets, screens (`screen_is`), vendored libraries, risk floor, install summary (`core/.../plugin/`) | Done |
-| Runtime capability guard (apps a plugin may operate or read, deeplink allowlist) | Done; denials end the run with `E_CAPABILITY` and cannot be caught |
+| Runtime capability guard | Done. A plugin is **blind** to apps outside `ui_automation`/`read_screen`: actions and conditions see an empty screen there. Launching an app or opening a link outside the lists ends the run with `E_CAPABILITY`, which cannot be caught |
 | `agp` CLI: `validate`, `build`, `inspect`, `targets` (`tools/agp`) | Done |
-| `interrupts.yaml`, `i18n/` | **Reserved**: rejected with a clear message until implemented |
+| `interrupts.yaml` | Done (see [action-catalog.md](action-catalog.md) section 2.2); not allowed in financial plugins |
+| `i18n/` | Done. `i18n/<lang>.yaml` (`pt`, `en`, `pt-br`…) holds `key: text` pairs; steps, targets and rules use `${t.key}`. The device's language picks the texts (`pt-BR` → `pt-br`, then `pt`), else `plugin.default_language`. At install every language must have the same keys and every `${t.key}` must exist; `t` cannot be assigned. Replay tests can set `language:`; `agp targets --lang` fills the texts |
 | Library `overrides:` | Not implemented; names that clash with a library are rejected |
 | Secrets (`type_secret`), admin-mode install UI, on-device storage | Not yet (needs the agent phone) |
-| `agp test` (replay a skill against fixtures) | Not yet; `agp targets` covers target checks against real dumps |
+| `agp test` (replay skills against fixtures with the real engine, in virtual time) | Done; test format in `core/.../replay/Replay.kt` |
 
 `PACKAGE.lock` format: first line `agp-lock 1`, then `file <sha256> <path>` and `library <id> <version>` lines, sorted. Its SHA-256 is the package hash shown at install.
 
@@ -145,10 +146,11 @@ Plugins are written as **folders** in a source repository. A command-line tool t
 | Command | What it does |
 |---------|--------------|
 | `agp validate <folder>` | Schema checks, reference checks (every `call`, target and screen exists), recursion and depth checks, capability/secret/risk report |
-| `agp test <folder>` | Runs the replay tests against the fixtures, offline |
+| `agp test <folder>` | Runs every test in `tests/` with the real engine against the screens in `fixtures/`, in virtual time; each test gives the skill, arguments, screen transitions (`after: click, label: ..., screen: ...`) and the expected status, error, return value and interaction log |
 | `agp build <folder>` | Vendors the libraries, writes `PACKAGE.lock`, and produces a **reproducible** zip (sorted entries, fixed timestamps), so the same source always gives the same hash |
 | `agp inspect <file.agp>` | Verifies a package and prints its install summary and hash |
-| `agp targets <folder\|file.agp> <dump.xml>` | Resolves every named target against a real `uiautomator dump` and shows how each was found (exact hint, ranking score) or why not |
+| `agp keygen`, `agp sign`, `agp verify`, `agp fingerprint` | Developer signing keys (private key encrypted with a passphrase) and package signatures; see ADR-009 |
+| `agp targets <folder\|file.agp> <dump.xml> [--lang <code>]` | Resolves every named target against a real `uiautomator dump` and shows how each was found (exact hint, ranking score) or why not |
 
 The phone only accepts built packages.
 
@@ -304,6 +306,8 @@ The plugin may suggest a `category`. The base app computes the **minimum risk le
 | Sends messages | 3 |
 | Reads messages | 2 |
 
+**The base app classifies, the plugin only suggests.** A plugin is treated as financial if it declares `category: financial` **or** operates or reads any app on the phone's list of financial apps (owner-managed; ships with confirmed package names only). Plugins that store secrets or type the device PIN need a trusted signer even when not financial. See [ADR-009](../adr/ADR-009-package-signing.md) §9.
+
 A financial plugin may declare `scope: read_only`. The base app then additionally refuses to click any target that looks like a payment or transfer entry (defense in depth, see [sms-security.md](sms-security.md) section 6.0), and rejects any `transfer`-type command.
 
 Limits (per-operation and daily amounts, allowed hours, beneficiary list, rate limits) are stored in the base app's policy, entered in admin mode. A plugin cannot raise a limit, add a beneficiary or change an alias. See [sms-security.md](sms-security.md).
@@ -318,6 +322,8 @@ Limits (per-operation and daily amounts, allowed hours, beneficiary list, rate l
 4. The owner approves, then types the secrets.
 5. **Homologation:** the base app compares the installed app version to `tested_versions`, then runs an optional read-only dry run.
 6. The plugin is enabled.
+
+**Signatures ([ADR-009](../adr/ADR-009-package-signing.md)):** a package may carry `PACKAGE.sig`, an ECDSA P-256 signature over the package hash, added by `agp sign` or `agp build --key`. At install the app shows *Verified developer* (trusted key), a warning with the key fingerprint (unknown key, which the owner can trust with a name on the spot), or a prominent *identity could not be verified* warning plus an extra confirmation (unsigned). An invalid signature is rejected. **Financial plugins must be signed by a trusted key.** Updates must keep the signer of the installed version; changing it requires uninstalling, which deletes the plugin's secrets. The phone re-checks the recorded signer every time it loads a package.
 
 **Update:** a diff is shown per file. Added capabilities, added secrets, a changed target app, or changes to any flow that uses `type_secret` or financial targets require re-approval and disable the plugin until approved. Vendored library version changes are listed too.
 
@@ -336,7 +342,8 @@ Limits (per-operation and daily amounts, allowed hours, beneficiary list, rate l
 | Plugin lowers risk to skip confirmation | Base app enforces the floor; the plugin can only raise it |
 | Plugin adds itself a beneficiary or raises limits | Policy is not plugin data |
 | Plugin loops forever / floods SMS | Global bounds; reply and rate limits |
-| A tampered plugin replaces a trusted one | Install only in admin mode; hash shown; updates re-approved; no remote install |
+| A tampered plugin replaces a trusted one | Install only in admin mode; hash shown; updates re-approved; no remote install; **signer continuity**: an update signed by another key (or unsigned) is blocked |
+| A package pretends to come from a known developer | Signatures are checked against keys the owner trusts by fingerprint; unknown or missing signatures are shown as such |
 | Plugin text influences the resolver into a wrong click | Anchor and exact-match verification for irreversible steps |
 | Owner approves without reading | Summary is short and explicit about secrets and risk floor; financial plugins add an extra confirmation screen |
 | Malicious zip: paths escaping the folder (`../`), absolute paths, symbolic links | Rejected at unpack; files are only read from the in-memory archive, never extracted to arbitrary paths |

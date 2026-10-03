@@ -1,12 +1,9 @@
 package com.proj.automation.dsl
 
-import com.proj.automation.parser.Selector
 import com.proj.automation.parser.Step
+import com.proj.automation.resolve.Target
 
-/**
- * DSL v2 syntax tree. A v1 workflow (a flat list of single-action steps) is a valid
- * v2 program whose body contains only [Node.Action] nodes.
- */
+/** Syntax tree of the workflow language used by plugin skills and flows. */
 sealed class Node {
     /** A built-in action, optionally verified by a post-condition after it succeeds */
     data class Action(val step: Step, val expect: Condition? = null) : Node()
@@ -33,10 +30,8 @@ sealed class Node {
 
 /** Conditions for `if`, `assert` and `expect`. String operands are templates. */
 sealed class Condition {
-    data class Exists(val selector: Selector) : Condition()
-    data class NotExists(val selector: Selector) : Condition()
-    /** `exists: { target: {...} }` — true only for a confident match, never a guess */
-    data class TargetExists(val target: com.proj.automation.resolve.Target, val negate: Boolean = false) : Condition()
+    /** `exists` / `not_exists`: true only for a confident match, never a guess */
+    data class Exists(val target: Target, val negate: Boolean = false) : Condition()
     data class Equals(val left: String, val right: String) : Condition()
     data class Contains(val haystack: String, val needle: String) : Condition()
     data class IsSet(val variable: String) : Condition()
@@ -54,12 +49,35 @@ data class Flow(
     val body: List<Node>
 )
 
+/**
+ * Handles an unexpected dialog (permission, rating prompt, ad) whenever it shows up: before each
+ * screen action, and once more after an action fails because its element was missing.
+ */
+data class InterruptRule(
+    val name: String,
+    val condition: Condition,
+    /** Only `click`, `back`, `wait`, `wait_for` and `log` (checked by the parser) */
+    val body: List<Node>,
+    val maxPerRun: Int
+)
+
 data class Program(
     val name: String? = null,
     val description: String? = null,
     val params: Map<String, ParamSpec> = emptyMap(),
-    /** Initial variables (v1 `variables:` block) */
-    val variables: Map<String, String> = emptyMap(),
     val flows: Map<String, Flow> = emptyMap(),
-    val body: List<Node> = emptyList()
-)
+    val body: List<Node> = emptyList(),
+    val interrupts: List<InterruptRule> = emptyList(),
+    /** Plugin texts by language (`i18n/<lang>.yaml`), read in templates as `${t.key}` */
+    val strings: Map<String, Map<String, String>> = emptyMap(),
+    /** Language used when the device's language has no texts */
+    val defaultLanguage: String? = null
+) {
+    /** The texts for [language] (e.g. "pt" or "pt-BR"), falling back to the default language */
+    fun stringsFor(language: String?): Map<String, String> {
+        val lang = language?.lowercase()
+        return lang?.let { strings[it] ?: strings[it.substringBefore('-')] }
+            ?: defaultLanguage?.let { strings[it] }
+            ?: emptyMap()
+    }
+}

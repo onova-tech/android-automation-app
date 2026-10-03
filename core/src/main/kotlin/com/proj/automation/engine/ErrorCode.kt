@@ -21,6 +21,8 @@ enum class ErrorCode {
     E_EXPR,
     /** The run exceeded the engine's global limits (steps, call depth, duration) */
     E_BUDGET,
+    /** The phone cannot run automation now (accessibility service off, screen locked, ...) */
+    E_DEVICE,
     /** Stopped by the user */
     E_CANCELLED
 }

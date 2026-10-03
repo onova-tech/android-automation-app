@@ -10,7 +10,7 @@
 
 **Goal.** A dedicated Android phone (the *agent*) runs 24x7 and operates apps for you (WhatsApp, Nubank, …). You reach it from a dumbphone by SMS today, and through other channels later. Everything runs on the phone; no cloud service.
 
-**What exists today.** A working POC: YAML workflows, an execution engine, element selectors, an accessibility service. It builds, and 35 unit tests pass. Bugs found in review were fixed and pushed.
+**What exists today (2026-10-01).** The POC was replaced by the target design, in two open pull requests (#2 engine and plugins, #3 command channel and admin screen): workflow language with control flow and verification, self-healing targets with a ranker that refuses to guess, `.agp` plugin packages with a capability guard and the `agp` tool, the SMS command router with the printed code sheet, policy, two-step confirmation and audit, and an on-device admin screen. 102 JVM tests pass. **None of it has run on a phone yet.**
 
 **What we learned from real tests.** On your S20 FE, the Nubank app exposes the **balance and the statement** to the accessibility layer, which is what the banking read path needs. Its login uses the **phone's own lock screen credential**, which forced two decisions: a separate agent phone, and a PIN lock on it.
 
@@ -58,6 +58,8 @@ Status legend: ✅ decided · 🟡 proposed (needs your approval) · 🔬 depend
 | S6 | **Admin operations only in person** (install plugins, change limits, beneficiaries) | Remote compromise cannot change the rules | You must be at the phone to change configuration | ✅ |
 | S7 | **Risk levels by command and by channel trust** | A weak channel cannot do what a strong one can | More policy to configure | ✅ |
 | S8 | **Fail closed**: when unsure, stop and report | A wrong click can be irreversible | Some commands will fail and need a retry | ✅ |
+| S9 | **Plugin packages are signed by their developers** (ECDSA P-256, like APKs). Unsigned ones install only after a warning that their identity could not be verified; **financial plugins need a key you trust**; updates must keep the same signer | Origin and integrity; stops another package from taking over an installed plugin | Developers must keep their key safe; trusting a key is a manual step on the phone | ✅ (ADR-009) |
+| S10 | **The phone decides what is financial**, not the plugin: a plugin operating any app on your list of financial apps is treated as financial whatever it declares. Plugins that store secrets or type the device PIN also need a trusted signer | A plugin could otherwise lie about its category to dodge the financial rules | You keep the list of financial apps up to date on the phone (ships with Nubank only) | ✅ (ADR-009 §9) |
 
 ### 2.4 Things explicitly ruled out
 
@@ -104,12 +106,16 @@ Grouped by what blocks what. Answer the **blocking** ones first; the rest can co
 | N9 | Accept the terms-of-service risks: WhatsApp may ban the dedicated number; Nubank may object to automation | Must be your explicit yes before the WhatsApp and Nubank plugins go live |
 | N10 | For the later transfer phase: separate account with a small balance? | Decide when transfers are on the table |
 
-## 4. What I will do once the blocking points are closed
+## 4. What happens next
 
-1. **Spike 1 on the S20 FE** (only needs adb, no secrets): measure Laya speed and memory.
-2. **Phase 2 — engine foundation:** DSL v2 (variables, conditions, verification), new read/verify actions, structured errors, plugin host with schema validation, a first WhatsApp plugin driven from the on-device UI.
-3. **On the agent phone:** finish Spike 4 (our service + PIN in the system prompt), then Spikes 3 (SMS reliability) and 6 (PIN unlock, reboots).
-4. **Phase 3:** channel gateway, SMS adapter, code sheet, policy and audit.
+Done without the agent phone (PRs #2 and #3): Phase 2 engine foundation and the device-independent part of Phase 3.
+
+Waiting for the agent phone (X1–X3 above):
+
+1. Install the APK, run the admin screen, and validate the WhatsApp plugin with `agp targets` on real screen dumps.
+2. Finish Spike 4 (our accessibility service with Nubank, PIN typed into the system prompt), then Spikes 3 (SMS reliability) and 6 (PIN unlock, reboots).
+3. Implement what needs the device: `wake_screen`/`unlock`, `type_secret`, notification replies, the "needs unlock" notice after reboots.
+4. Spike 1 (Laya speed on the phone) can run on the S20 FE at any time.
 
 I will report progress at milestones, and only interrupt you when a test result changes a decision.
 

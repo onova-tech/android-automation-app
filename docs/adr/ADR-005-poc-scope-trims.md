@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | **ADR** | ADR-005 |
-| **Status** | Accepted |
+| **Status** | Superseded (2026-10-01) by the target architecture in `docs/vision/` and ADR-006/007/008 |
 | **Date** | 2026-07-06 |
 | **Context** | PROJ-000 Phase 1 POC — Scope management for 15-day timeline |
 | **Deciders** | System Architect, BSA |
