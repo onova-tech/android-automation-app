@@ -19,3 +19,8 @@ fi
 
 echo "sdk.dir=$SDK" > local.properties   # gitignored
 ./gradlew --no-daemon -q :core:assemble :app:assembleDebug
+
+# Claude Code CLI (native installer -> ~/.local/bin/claude). Non-fatal: the build above is what matters.
+if ! command -v claude >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/claude" ]; then
+  curl -fsSL https://claude.ai/install.sh | bash || echo "WARN: Claude Code install failed; run the installer manually"
+fi

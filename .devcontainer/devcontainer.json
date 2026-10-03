@@ -30,6 +30,6 @@
     "--add-host=host.docker.internal:host-gateway"
   ],
   "remoteEnv": {
-    "PATH": "${containerEnv:PATH}:/usr/local/android-sdk/platform-tools"
+    "PATH": "${containerEnv:PATH}:/usr/local/android-sdk/platform-tools:${containerEnv:HOME}/.local/bin"
   }
 }
