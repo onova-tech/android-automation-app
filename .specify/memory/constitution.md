@@ -1,6 +1,7 @@
 <!--
 Sync Impact Report
-- Version: (template) → 1.0.0
+- Version: 1.0.0 → 1.0.1 (PATCH: stack line updated for the Gradle 9 / AGP 9 / Kotlin 2 upgrade)
+- Earlier: (template) → 1.0.0
 - Ratified from the accepted vision documents and ADR-001…ADR-009 (2026-09-30 … 2026-10-01),
   migrated to Spec Kit on 2026-10-03. The old docs/ folder was removed; its content lives in
   this constitution and in specs/001…011.
@@ -93,8 +94,10 @@ the agent phone.
 - Documentation and code are written in **English**.
 - Work happens on `feature/<name>` branches; a finished branch becomes a pull request against
   `main`. Commits follow Conventional Commits.
-- Stack: Kotlin (JVM 17), Gradle with AGP 8.2, minSdk 26 / target 34, SnakeYAML 2.x (safe
-  loading, no duplicate keys), coroutines, Jetpack Compose for on-device UI, JUnit 5 + MockK.
+- Stack: Kotlin 2 (JVM 17), Gradle 9 with AGP 9 (built-in Kotlin), minSdk 26 / target 34
+  (compileSdk follows the libraries), SnakeYAML 2.x (safe loading, no duplicate keys),
+  coroutines, Jetpack Compose for on-device UI, JUnit + MockK. Dependabot proposes updates; a
+  `targetSdk` change is a behavior change and needs its own spec.
 - `./gradlew :core:test` and `./gradlew :app:assembleDebug` must pass before a PR is opened.
 
 ## Quality gates
@@ -118,4 +121,4 @@ that updates this file, bumps the version (MAJOR: a principle removed or redefin
 principle or section added; PATCH: wording), and updates any affected spec. The owner approves
 amendments. Reviews check changes against the quality gates above.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-01 | **Last Amended**: 2026-10-03
+**Version**: 1.0.1 | **Ratified**: 2026-10-01 | **Last Amended**: 2026-10-03

@@ -10,7 +10,7 @@ runner used by `ReplayTest` and `agp test`, with an injected clock and sleep for
 
 ## Technical Context
 
-**Language/Version**: Kotlin 1.9.22, JVM 17 · **Testing**: JUnit 5 · **Project Type**: JVM library + CLI
+**Language/Version**: Kotlin 2.4, JVM 17 · **Testing**: JUnit 5 · **Project Type**: JVM library + CLI
 
 ## Constitution Check
 

@@ -6,12 +6,17 @@ updates:
     schedule:
       interval: monthly
 
-  # Gradle plugins and libraries (app, core); minor/patch updates grouped into one PR
+  # Gradle plugins and libraries (app, core)
   - package-ecosystem: gradle
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 5
     groups:
+      # Kotlin, its Compose compiler plugin and coroutines must move together
+      kotlin:
+        patterns: ["org.jetbrains.kotlin*", "org.jetbrains.kotlinx*"]
+      junit:
+        patterns: ["org.junit*"]
       gradle-minor:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5

@@ -11,7 +11,7 @@ and the Compose admin screen.
 
 ## Technical Context
 
-**Language/Version**: Kotlin 1.9.22, JVM 17
+**Language/Version**: Kotlin 2.4, JVM 17
 
 **Primary Dependencies**: `javax.crypto` (HMAC-SHA256), Android Keystore, `SmsManager`, Compose
 
