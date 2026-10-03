@@ -92,6 +92,13 @@ the way, read chat, and a phone set to English with a changed button id).
 `agp targets` checks a plugin against a real screen: dump it with
 `adb shell uiautomator dump /sdcard/s.xml && adb pull /sdcard/s.xml` (the file stays on your computer).
 
+## Downloads
+
+Every merge to `main` publishes a [release](https://github.com/onova-tech/android-automation-app-poc/releases)
+with the signed APK (`android-automation-<version>.apk`), the plugin tool (`agp-<version>.zip`, needs
+Java 17: unzip and run `bin/agp`) and `SHA256SUMS`. Pull requests run the tests
+(`.github/workflows/ci.yml`); `main` only changes through pull requests.
+
 ## Building and testing
 
 Prerequisites: JDK 17, Android SDK (API 34 platform).
