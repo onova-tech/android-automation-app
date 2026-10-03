@@ -12,6 +12,8 @@ class AutomationService : AccessibilityService(), AutomationBridge {
 
     companion object {
         const val TAG = "AutomationService"
+        /** How far up the tree a click looks for a clickable ancestor */
+        private const val MAX_CLICK_ANCESTORS = 5
 
         @Volatile
         private var _instance: AutomationService? = null
@@ -103,7 +105,15 @@ class AutomationService : AccessibilityService(), AutomationBridge {
 
     override fun click(node: AccessibilityNodeInfo): Boolean {
         return try {
-            val success = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            // Labels in lists (e.g. a Settings row title) are not clickable themselves: click the
+            // nearest clickable ancestor, as TalkBack does
+            var target: AccessibilityNodeInfo? = node
+            var depth = 0
+            while (target != null && !target.isClickable && depth < MAX_CLICK_ANCESTORS) {
+                target = target.parent
+                depth++
+            }
+            val success = (target?.takeIf { it.isClickable } ?: node).performAction(AccessibilityNodeInfo.ACTION_CLICK)
             // Recycle after use to prevent memory leaks
             // Note: callers are responsible for recycling nodes they own
             success
