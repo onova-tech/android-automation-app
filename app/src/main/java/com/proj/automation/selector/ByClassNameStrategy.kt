@@ -23,8 +23,9 @@ class ByClassNameStrategy : SelectorStrategy {
         }
 
         // Apply index filter if specified
-        return if (classSelector.index != null && classSelector.index in results.indices) {
-            listOf(results[classSelector.index])
+        val index = classSelector.index
+        return if (index != null && index in results.indices) {
+            listOf(results[index])
         } else {
             results
         }

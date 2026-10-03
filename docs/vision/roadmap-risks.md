@@ -19,7 +19,7 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 | **4** | **Does the Nubank app work with an accessibility service enabled?** — **partial: read gate passed (2026-10-01)**, see [spike-04-nubank.md](spike-04-nubank.md) | Done: tree dumps on the owner's phone. Remaining, on the agent phone: our service enabled, PIN typed into the system credential prompt, re-authentication frequency, device registration | If Nubank refuses our service or the PIN cannot be typed ⇒ the banking case is out of scope (unless the notification-ledger fallback proves enough) |
 | **5** | Is `RemoteInput` on WhatsApp/Telegram notifications stable? | Proof of concept: reply through the notification | If yes, it is surface #2 (more robust than UI) |
 | **6** | Does the PIN-locked agent phone run unattended, and how does it behave after a reboot? | Repeated screen-off → wake → PIN unlock → act cycles; power-cut and reboot tests; a `directBootAware` receiver replying before first unlock; charging 24x7 with the battery cap | Confirms the PIN lock setup (D9) and the recovery procedure |
-| **7** | Can a declarative YAML plugin express a real WhatsApp flow with only the built-in actions? | Write the `whatsapp` plugin from [plugins.md](plugins.md) and run it in the prototype interpreter | Gaps found become new built-in actions, not plugin code |
+| **7** | Can a declarative plugin package express a real WhatsApp flow with only the built-in actions? | Write the `whatsapp` plugin from [plugins.md](plugins.md) and run it in the prototype interpreter | Gaps found become new built-in actions, not plugin code |
 | **8** | Can a candidate dumbphone send **and receive** binary SMS from our own program? | Buy or borrow one candidate. Write a minimal MIDlet: send a data SMS to a port, listen on a port, test push registration with the app closed, test the crypto library and speed, test loading the app without a store | Send, receive (also with the app closed), and crypto all work ⇒ Profile B is available on that model. Otherwise stay on Profile A or use a locked-down Android phone |
 
 ## 2. Phases
@@ -31,11 +31,14 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 - Structured results and error codes.
 - Local observability: a trace per run, including resolver decisions.
 - Screen recorder (data for later training).
-- **Plugin host, first version:** manifest schema, validator, capability checks, interpreter over the existing engine.
+- **Plugin host, first version:** package format and safe unpacker, `PACKAGE.lock` check, schema and reference validation, flows with `call`, capability checks, interpreter over the existing engine.
+- **`agp` CLI:** validate, test (replay) and reproducible build, plus the first library (`android-common`).
 - **Profile B protocol first, on Android:** frame format, test vectors and a reference client on a spare Android phone. The dumbphone client is a port done only after Spike 8 picks hardware.
 - Reduce POC debt: real line numbers in parse errors, node recycling where applicable, `INTERNET` removed from the manifest.
 
-**Exit:** a real WhatsApp flow runs from a YAML plugin through a **local interface** (no SMS), with post-condition verification.
+**Progress (branch `feature/engine-foundation`, 2026-10-01):** done — DSL v2 parser and interpreter (`dsl/`): `params`, `variables`, `${var|filter}` templates, `set`, `if`/`else`, `first_that_works`, `try`/`on_error`, `call` with flows, `assert`, `return`, `expect` post-conditions, `into` bindings, global run limits, structured error codes, `read_text`; the editor runs v2; `target` with intent, role, hints and region resolved by a heuristic ranker (the ADR-006 baseline) over `UiNode` snapshots, also parsable from `uiautomator` XML for fixtures; `read_list` and `scroll_until`; `open_url` with a deeplink allowlist; a pure-JVM `:core` module; the plugin package host (safe unpacker, lock, manifest, libraries, risk floor, install summary, runtime capability guard) and the `agp` CLI (`validate`, `build`, `inspect`, `targets`); an example WhatsApp plugin (not validated on the real app). Next (needs the agent phone) — admin-mode install UI, secrets with `type_secret`, then Phase 3 (channels).
+
+**Exit:** a real WhatsApp flow runs from a plugin package through a **local interface** (no SMS), with post-condition verification.
 
 ### Phase 3 — Channel gateway, SMS channel and base security
 
@@ -102,7 +105,7 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 | 2 | First bank | Nubank (changed from Itaú on 2026-09-30); read gate passed in Spike 4 |
 | 3 | One-time codes | Printed sheet |
 | 4 | Secrets | Stored on the device, entered at plugin install |
-| 5 | Extensibility | Declarative YAML plugins; intelligence in the base app |
+| 5 | Extensibility | Declarative plugin packages (zip of YAML files, flows, vendored libraries); intelligence in the base app |
 | 6 | Documentation language | English |
 | 7 | First banking scope | Read-only: balance and statement |
 | 8 | WhatsApp account | Dedicated number, on a device where the main account never ran; **the same number receives the SMS commands** (T17) |
@@ -138,5 +141,5 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 1. Choose the agent phone (open item 1) and the dumbphone (open item 8).
 2. On the agent phone, finish Spike 4 (our service + PIN in the system prompt), then Spikes 3 and 6. Spike 1 can run on the S20 FE now (read-only performance test, no secrets).
-3. Approve [ADR-006](../adr/ADR-006-laya-decision-layer.md), [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) and [ADR-008](../adr/ADR-008-channel-abstraction.md), or adjust them with spike results.
+3. ~~Approve ADR-006, ADR-007 and ADR-008~~ Accepted on 2026-10-01; spike results can still reverse them.
 4. Only then break Phase 2 into tickets.

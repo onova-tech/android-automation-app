@@ -1,107 +1,87 @@
 package com.proj.automation.engine
 
+import com.proj.automation.dsl.Interpreter
+import com.proj.automation.dsl.Node
+import com.proj.automation.dsl.Program
+import com.proj.automation.dsl.RunLimits
+import com.proj.automation.dsl.RunResult
+import com.proj.automation.dsl.RunStatus
 import com.proj.automation.engine.models.ExecutionResult
-import com.proj.automation.engine.models.StepResult
-import com.proj.automation.parser.OnFailurePolicy
 import com.proj.automation.parser.Workflow
 import com.proj.automation.service.EventBus
 import com.proj.automation.selector.SelectorEngine
-import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Core step-loop orchestrator that iterates over parsed workflow steps,
- * dispatches each to the appropriate action handler, applies retry/timeout/error
- * policies, and reports execution results.
+ * Entry point for running workflows. Builds a fresh [ActionContext] per run and delegates
+ * to the DSL v2 [Interpreter]; v1 workflows run as programs made only of actions.
  */
 class ExecutionEngine(
-    private val actionDispatcher: ActionDispatcher,
-    private val errorHandler: ErrorHandler,
-    private val eventBus: EventBus
+    actionDispatcher: ActionDispatcher,
+    errorHandler: ErrorHandler,
+    private val eventBus: EventBus,
+    limits: RunLimits = RunLimits()
 ) {
 
-    /** Token for the current run; replaced on each [execute] so a previous Stop doesn't carry over. */
+    private val interpreter = Interpreter(actionDispatcher, errorHandler, eventBus, limits)
+
+    /** Token for the current run; replaced on each run so a previous Stop doesn't carry over. */
     @Volatile
     private var cancellationToken = CancellationToken()
 
     /**
-     * Execute a parsed workflow. Returns the full execution result with
-     * per-step results, success/failure status, and timing.
+     * Run a DSL v2 program with literal arguments (for example, values from a command).
+     * [guard] restricts what the program may touch (a plugin's approved capabilities).
      */
-    suspend fun execute(workflow: Workflow): ExecutionResult {
+    suspend fun run(
+        program: Program,
+        args: Map<String, String> = emptyMap(),
+        guard: com.proj.automation.plugin.ActionGuard? = null
+    ): RunResult {
         val token = CancellationToken().also { cancellationToken = it }
-        val result = ExecutionResult(
-            workflowName = workflow.name,
-            startTime = System.currentTimeMillis()
-        )
-
-        if (workflow.steps.isEmpty()) {
-            result.completedSuccessfully = true
-            result.endTime = System.currentTimeMillis()
-            result.totalDurationMs = result.endTime - result.startTime
-            return result
-        }
-
         val context = ActionContext(
             automation = com.proj.automation.accessibility.AutomationBridge.get(),
             selectorEngine = SelectorEngine(),
             eventBus = eventBus,
             cancellationToken = token
         )
+        return interpreter.run(program, args, context, guard)
+    }
 
-        for ((index, step) in workflow.steps.withIndex()) {
-            val stepResult = try {
-                context.throwIfCancelled()
-                errorHandler.executeWithPolicy(step, { ctx ->
-                    val singleResult = actionDispatcher.dispatch(step, ctx)
-                    singleResult.copy(stepIndex = index)
-                }, context)
-            } catch (e: CancelledException) {
-                result.cancelled = true
-                result.endTime = System.currentTimeMillis()
-                result.totalDurationMs = result.endTime - result.startTime
-                return result
-            } catch (e: CancellationException) {
-                // Coroutine cancellation (job cancelled) must propagate, not be recorded as a step failure
-                throw e
-            } catch (e: Exception) {
-                StepResult(
-                    stepIndex = index,
-                    action = step.action,
-                    success = false,
-                    durationMs = 0,
-                    errorMessage = "Fatal error: ${e.message}"
-                )
-            }
+    /** Runs one of a plugin's skills under that plugin's capabilities. */
+    suspend fun runSkill(plugin: com.proj.automation.plugin.Plugin, skill: String, args: Map<String, String>): RunResult {
+        val s = plugin.skills[skill] ?: return RunResult(RunStatus.FAILED, ErrorCode.E_EXPR, "Unknown skill '$skill'")
+        return run(s.program, args, com.proj.automation.plugin.CapabilityGuard(plugin.manifest.capabilities))
+    }
 
-            result.steps.add(stepResult)
-
-            // Publish step result to event bus for UI updates
-            eventBus.publish(
-                EventBus.Event.StepCompleted(
-                    stepIndex = stepResult.stepIndex,
-                    success = stepResult.success,
-                    action = stepResult.action.yamlValue,
-                    errorMessage = stepResult.errorMessage
-                )
+    /**
+     * Execute a v1 workflow. Returns the full execution result with
+     * per-step results, success/failure status, and timing.
+     */
+    suspend fun execute(workflow: Workflow): ExecutionResult {
+        val startTime = System.currentTimeMillis()
+        if (workflow.steps.isEmpty()) {
+            return ExecutionResult(
+                workflowName = workflow.name, completedSuccessfully = true,
+                startTime = startTime, endTime = startTime
             )
-
-            // Publish log messages from LogHandler
-            stepResult.details["message"]?.let { message ->
-                eventBus.publish(EventBus.Event.LogMessage(message.toString()))
-            }
-
-            // On failure with ABORT policy, stop execution
-            if (!stepResult.success && step.onFailure == OnFailurePolicy.ABORT) {
-                result.endTime = System.currentTimeMillis()
-                result.totalDurationMs = result.endTime - result.startTime
-                return result
-            }
         }
-
-        result.completedSuccessfully = true
-        result.endTime = System.currentTimeMillis()
-        result.totalDurationMs = result.endTime - result.startTime
-        return result
+        val program = Program(
+            name = workflow.name,
+            description = workflow.description,
+            variables = workflow.variables,
+            body = workflow.steps.map { Node.Action(it) }
+        )
+        val run = run(program)
+        val endTime = System.currentTimeMillis()
+        return ExecutionResult(
+            workflowName = workflow.name,
+            steps = run.steps.toMutableList(),
+            completedSuccessfully = run.status == RunStatus.SUCCEEDED,
+            cancelled = run.status == RunStatus.CANCELLED,
+            totalDurationMs = endTime - startTime,
+            startTime = startTime,
+            endTime = endTime
+        )
     }
 
     /** Cancel a running workflow */

@@ -3,10 +3,10 @@
 | Field | Value |
 |-------|-------|
 | **ADR** | ADR-006 |
-| **Status** | **Proposed** (conditional on Spikes 1 and 2) |
+| **Status** | **Accepted** (2026-10-01). Becomes Rejected if Spike 1 or 2 fails; see Validation |
 | **Date** | 2026-09-30 |
 | **Context** | Target vision in `docs/vision/` — resilient element resolution, 100% local |
-| **Deciders** | TBD |
+| **Deciders** | Owner |
 
 ## Context
 

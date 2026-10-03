@@ -3,10 +3,10 @@
 | Field | Value |
 |-------|-------|
 | **ADR** | ADR-008 |
-| **Status** | **Proposed** |
+| **Status** | **Accepted** (2026-10-01) |
 | **Date** | 2026-10-01 |
 | **Context** | Target vision in `docs/vision/` — the owner wants SMS to be one way of reaching the agent, with others added later |
-| **Deciders** | TBD |
+| **Deciders** | Owner |
 
 ## Context
 

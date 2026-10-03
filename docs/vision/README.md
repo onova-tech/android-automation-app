@@ -12,16 +12,16 @@
 |----------|---------|
 | [decision-report.md](decision-report.md) | **Start here:** consolidated decisions, their status, and what the owner still needs to answer |
 | **README.md** (this file) | Vision, decisions taken, principles, layered architecture, end-to-end flow, agent device provisioning |
-| [plugins.md](plugins.md) | Plugin system: declarative YAML plugins, manifest, capabilities, secrets, lifecycle, trust model |
+| [plugins.md](plugins.md) | Plugin system: declarative packages (zip of YAML files), reuse through flows and libraries, capabilities, secrets, lifecycle, trust model |
 | [laya-resolution.md](laya-resolution.md) | How Laya fits into element resolution, including the OCR path and the model's real limits |
 | [action-catalog.md](action-catalog.md) | New actions, DSL v2 |
 | [channels.md](channels.md) | Contact channels: channel-neutral envelope, adapters, trust profiles; SMS is the first channel |
 | [sms-security.md](sms-security.md) | SMS channel, command protocol, printed one-time-code sheet, threat model, bank transfers |
 | [roadmap-risks.md](roadmap-risks.md) | Phases, validation spikes, risks, open decisions |
 | [spike-04-nubank.md](spike-04-nubank.md) | Spike 4 results so far: Nubank exposes balance and statement in the tree; login uses the system credential prompt |
-| [ADR-006](../adr/ADR-006-laya-decision-layer.md) | Proposed decision: Laya as local decision layer |
-| [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) | Proposed decision: declarative YAML plugins, intelligence in the base app |
-| [ADR-008](../adr/ADR-008-channel-abstraction.md) | Proposed decision: channel abstraction, SMS as the first channel |
+| [ADR-006](../adr/ADR-006-laya-decision-layer.md) | Accepted decision: Laya as local decision layer |
+| [ADR-007](../adr/ADR-007-declarative-yaml-plugins.md) | Accepted decision: declarative plugin packages (zip of YAML files), intelligence in the base app |
+| [ADR-008](../adr/ADR-008-channel-abstraction.md) | Accepted decision: channel abstraction, SMS as the first channel |
 
 ---
 
@@ -45,7 +45,7 @@ The user carries only the dumbphone (calls and SMS). Everything that needs a sma
 2. **Self-contained:** no external service in the execution path (no cloud LLM, no backend, no telemetry).
 3. **Secure by default:** an SMS can be forged; no sensitive action depends on the sender number alone.
 4. **Predictable:** ML models *classify among known options*; they never generate free-form actions.
-5. **Extensible by data:** new apps are added as **plugins**, which are plain YAML files. All the intelligence lives in the base app.
+5. **Extensible by data:** new apps are added as **plugins**, which are packages of YAML files (no code). All the intelligence lives in the base app.
 
 ### What "self-contained" means here
 
@@ -75,7 +75,7 @@ The user carries only the dumbphone (calls and SMS). Everything that needs a sma
 | D2 | First bank | **Nubank** (changed from Itaú on 2026-09-30) | Feasibility unknown — validated in Spike 4. See the Nubank notes in [sms-security.md](sms-security.md) section 6.1 |
 | D3 | One-time codes | **Printed sheet** (no token) | Confirmed; design in [sms-security.md](sms-security.md) |
 | D4 | Secrets | Bank password and any other secret are **stored on the agent device**, entered on the device when a plugin is installed | Confirmed; see the risk controls that bound the damage in [sms-security.md](sms-security.md) |
-| D5 | Extensibility | **Plugins = declarative YAML files**; all logic (interpreter, resolver, policy, auth, ML) is in the base app | Confirmed; see [plugins.md](plugins.md) and ADR-007 |
+| D5 | Extensibility | **Plugins = declarative packages** (a zip of YAML files with reusable flows and vendored libraries); all logic (interpreter, resolver, policy, auth, ML) is in the base app | Confirmed; see [plugins.md](plugins.md) and ADR-007 |
 | D6 | Documentation language | English | Done |
 | D7 | First banking scope | **Read-only: balance and statement.** No transfer skill in the first version | Confirmed by owner |
 | D8 | WhatsApp account | A **dedicated number** used only for this automation, on a device where the main account never ran. It is the **same number** that receives the SMS commands, so the command number is known to everyone the WhatsApp account talks to (see T17 in [sms-security.md](sms-security.md)) | Confirmed by owner |

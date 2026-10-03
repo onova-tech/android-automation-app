@@ -152,6 +152,12 @@ Each action returns a typed result (today `StepResult` only carries an error str
 | `E_TIMEOUT` | Time limit exceeded | "Took too long" |
 | `E_CAPABILITY` | Plugin tried something it was not approved for | "Plugin not permitted" |
 | `E_DEVICE` | Locked screen, no network, battery | "Device unavailable" |
+| `E_ACTION_FAILED` | The action reported failure for another reason, or threw | "Step failed" |
+| `E_EXPR` | Undefined variable, bad template, invalid flow call | "Plugin error" (a bug in the plugin, not the user's fault) |
+| `E_BUDGET` | The run exceeded the engine's global limits (actions, steps, call depth, duration) | "Took too long" |
+| `E_CANCELLED` | Stopped by the user (`STOP` or the Stop button) | "Stopped" |
+
+Implemented so far in the engine: `E_NOT_FOUND`, `E_TIMEOUT`, `E_VERIFY_FAILED`, `E_ACTION_FAILED`, `E_EXPR`, `E_BUDGET`, `E_CANCELLED` (`engine/ErrorCode.kt`).
 
 > **`E_VERIFY_FAILED` on effectful actions** (send, transfer) means "I do not know whether it happened". The reply must say so explicitly so the user does not repeat a transfer by mistake. That requires idempotency (section 6).
 

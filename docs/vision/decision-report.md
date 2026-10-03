@@ -27,7 +27,7 @@ Status legend: ✅ decided · 🟡 proposed (needs your approval) · 🔬 depend
 | # | Decision | Why | Cost / trade-off | Status |
 |---|----------|-----|------------------|--------|
 | P1 | The agent is a **dedicated phone**, not your daily phone | It stores the Nubank password and its own PIN | Buying and maintaining a second phone | ✅ 🔁 (was the S20 FE until Spike 4) |
-| P2 | **Contact through channels; SMS first**, others later | Your requirement; a dumbphone can only do SMS today | A small extra layer (channel gateway) | ✅ (ADR-008 🟡) |
+| P2 | **Contact through channels; SMS first**, others later | Your requirement; a dumbphone can only do SMS today | A small extra layer (channel gateway) | ✅ (ADR-008 ✅) |
 | P3 | **Banking v1 is read-only**: balance and statement | Limits damage while trust is built; no money can move | No transfers until a later phase with extra controls | ✅ |
 | P4 | First bank: **Nubank** | Your choice | Flutter + server-driven UI: screens can change without an app update | ✅ 🔁 (was Itaú) |
 | P5 | WhatsApp on a **dedicated number**, same SIM that receives commands | Protects your main WhatsApp from a ban | Anyone in that WhatsApp knows the command number (handled by allowlist + codes) | ✅ |
@@ -37,12 +37,13 @@ Status legend: ✅ decided · 🟡 proposed (needs your approval) · 🔬 depend
 
 | # | Decision | Why | Cost / trade-off | Status |
 |---|----------|-----|------------------|--------|
-| A1 | **Plugins are YAML files**; all intelligence in the base app | Your requirement; small auditable plugins; a plugin cannot steal secrets or bypass limits | Every missing capability needs a base-app release | ✅ (ADR-007 🟡) |
+| A1 | **Plugins are packages: a zip of small YAML files** with reusable flows and shared libraries; still no code; all intelligence in the base app | Your requirement; a single YAML file grows too big; reuse without copy-paste; a plugin cannot steal secrets or bypass limits | A build tool and a safe unpacker; every missing capability needs a base-app release | ✅ 🔁 (was one YAML file; ADR-007 🟡) |
+| A1a | **Libraries are vendored** into each package at build time (v1) | The hash you approve covers everything that runs; a library update cannot change an approved plugin | A library fix means rebuilding the plugins that use it | 🟡 |
 | A2 | **Structured surfaces before screen automation** (deeplinks, notification replies, then UI) | Far more robust than finding buttons | Each plugin must be designed per app | ✅ |
 | A3 | **Self-healing element resolution**: cache → exact hints → heuristic ranking → Laya → verify after acting | Survives app redesigns without editing plugins | More components; needs training data | 🟡 |
-| A4 | **Laya** as the local decision model (text only, picks among known candidates) | Runs offline, cannot invent actions | ~650 MB; needs fine-tuning; very new project. Kept only if it beats a simple baseline | 🟡 🔬 (ADR-006, Spikes 1–2) |
+| A4 | **Laya** as the local decision model (text only, picks among known candidates) | Runs offline, cannot invent actions | ~650 MB; needs fine-tuning; very new project. Kept only if it beats a simple baseline | ✅ 🔬 (ADR-006 accepted; reversible by Spikes 1–2) |
 | A5 | **Laya cannot see images.** OCR can feed it text, but **not for Nubank** (screens cannot be captured) | Model capability; Nubank protection | Nubank depends entirely on the accessibility tree | ✅ |
-| A6 | The base app has **no Internet permission**; network channels, if ever, go in a separate companion app | Makes "self-contained" verifiable | A second app for network channels | 🟡 (ADR-008) |
+| A6 | The base app has **no Internet permission**; network channels, if ever, go in a separate companion app | Makes "self-contained" verifiable | A second app for network channels | ✅ (ADR-008) |
 | A7 | Development stays on **Android 13** behavior as the baseline | Accessibility rules tighten in newer versions | Conflicts with "keep the agent phone patched" (see D1 in section 3) | 🔬 |
 
 ### 2.3 Security
@@ -77,8 +78,8 @@ Grouped by what blocks what. Answer the **blocking** ones first; the rest can co
 | # | Question | What it blocks | My recommendation |
 |---|----------|----------------|-------------------|
 | D1 | **Which phone will be the agent?** Pick a model, or approve these criteria and I will propose models: still receiving security updates, ≥ 6 GB RAM, Samsung or Pixel. **Trade-off:** a patched phone will run Android 14+, which adds rules that let apps hide screens from automation | Spike 4 completion, Spikes 3 and 6, all device work | A recent mid-range Samsung or Pixel still under updates; accept Android 14+ and test early |
-| D2 | **Approve the three proposed ADRs** (006 Laya, 007 YAML plugins, 008 channels), or tell me what to change | Phase 2 design | Approve; each has a test that can reverse it |
-| D3 | **Autonomy:** may I start Phase 2 (engine foundation, no SMS, no banking) and **commit and push** to this branch without asking each time? Should I open pull requests or only push? | Everything after the spikes | Yes to commit + push on this branch; PRs only when you ask |
+| D2 | ~~Approve ADRs 006, 007, 008~~ **Answered 2026-10-01: accepted.** | — | — |
+| D3 | ~~Autonomy~~ **Answered 2026-10-01:** commit and push without asking; branches `feature/<name>`; Phase 2 started; **finished feature branches become pull requests**; keep working without waiting for check-ins. | — | — |
 
 ### 3.2 Blocking — actions only you can do
 

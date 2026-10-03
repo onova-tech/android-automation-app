@@ -17,6 +17,8 @@ data class Step(
     val action: ActionType,
     val parameters: Map<String, Any?> = emptyMap(),
     val selector: Selector? = null,
+    /** DSL v2 target (intent + hints); resolved by [com.proj.automation.resolve.TargetResolver] */
+    val target: com.proj.automation.resolve.Target? = null,
     val retries: Int = 1,
     val retryDelayMs: Long = 1000,
     val timeoutMs: Long = 30000,

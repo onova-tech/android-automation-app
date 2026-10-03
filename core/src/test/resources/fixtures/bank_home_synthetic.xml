@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+<!-- Synthetic bank home screen shaped like the Flutter tree seen in Spike 4: labels only in
+     content-desc, no resource ids, multi-line descriptions. All values are invented. -->
+<hierarchy rotation="0">
+  <node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="com.example.bank" content-desc="" clickable="false" scrollable="false" focused="false" bounds="[0,0][1080,2340]">
+    <node index="0" text="" resource-id="" class="android.widget.Button" package="com.example.bank" content-desc="Esconder saldo." clickable="true" scrollable="false" focused="false" bounds="[780,100][900,220]" />
+    <node index="1" text="" resource-id="" class="android.widget.Button" package="com.example.bank" content-desc="Ajuda" clickable="true" scrollable="false" focused="false" bounds="[900,100][1000,220]" />
+    <node index="2" text="" resource-id="" class="android.widget.Button" package="com.example.bank" content-desc="Menu" clickable="true" scrollable="false" focused="false" bounds="[1000,100][1080,220]" />
+    <node index="3" text="" resource-id="" class="android.widget.Button" package="com.example.bank" content-desc="Conta&#10;Saldo disponível&#10;R$ 1.234,56" clickable="true" scrollable="false" focused="false" bounds="[0,300][1080,600]" />
+    <node index="4" text="" resource-id="" class="android.widget.Button" package="com.example.bank" content-desc="Meus cartões" clickable="true" scrollable="false" focused="false" bounds="[0,1200][1080,1350]" />
+  </node>
+</hierarchy>

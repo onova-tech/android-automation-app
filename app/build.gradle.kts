@@ -63,6 +63,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":core"))
+
     // ——— YAML Parsing ———
     implementation("org.yaml:snakeyaml:2.2")
 

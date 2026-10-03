@@ -85,6 +85,46 @@ Expected result: Calculator displays "5"
 | Home | `home` | System home navigation |
 | Scroll | `scroll` | Scrolls a scrollable node |
 | Log | `log` | Emits log message to execution log |
+| Read text | `read_text` | Reads an element's text (or content description) into a variable with `into` |
+| Read list | `read_list` | Collects item labels in reading order, scrolling for more (`match`, `role`, `max`, `max_scrolls`, `into`) |
+| Scroll until | `scroll_until` | Scrolls until the selector or target is on screen; stops when the list stops moving |
+
+## DSL v2 (control flow and variables)
+
+Every v1 workflow above still runs unchanged. v2 adds:
+
+| Construct | Example |
+|-----------|---------|
+| Parameters and variables | `params: { to: {}, text: { default: "hi" } }`, `set: { url: "https://wa.me/${to}" }` |
+| Templates with filters | `"${text|urlencode}"`, filters: `urlencode`, `upper`, `lower`, `trim`, `mask` |
+| Conditions | `if: { exists: { text: "OK" }, then: [...], else: [...] }`; also `not_exists`, `equals`, `contains`, `is_set`, `not`, `all`, `any` |
+| Fallbacks | `first_that_works: [ ...alternatives... ]` |
+| Error handling | `try: { do: [...], on_error: [...] }` (exposes `${error.code}`, `${error.message}`) |
+| Reusable flows | `flows: { press: { params: { key: {} }, steps: [...] } }` and `call: { flow: press, with: { key: "2" }, into: var }` |
+| Verification | `expect:` on any action (a post-condition), `assert:` as a step |
+| Reading values | `read_text: { selector: {...}, into: balance }`, `read_list: { match: "R\\$", max: 5, into: entries }` (`${entries}` renders one per line; `${entries.size}`, `${entries.0}`) |
+| Targets (self-healing) | `click: { target: { intent: "send the message", role: button, hints: { content_description: "Send" }, region: bottom-right } }` — exact hints first, then ranking; refuses to guess (`E_LOW_CONFIDENCE`) |
+| Result | `return: "Balance ${balance|mask}"` |
+
+The engine enforces global limits (actions, steps, call depth, duration) that a workflow cannot override, and returns structured error codes (`E_NOT_FOUND`, `E_TIMEOUT`, `E_VERIFY_FAILED`, …). Recursive flows and bad templates are rejected before the run starts. See [`examples/calculator_flows_v2.yaml`](examples/calculator_flows_v2.yaml).
+
+## Plugins and the `agp` tool
+
+Apps are supported through **plugin packages** (`.agp`: a zip of YAML files, no code). See
+[`plugins/whatsapp`](plugins/whatsapp) (an unvalidated example) and
+[docs/vision/plugins.md](docs/vision/plugins.md).
+
+```bash
+./gradlew :agp:installDist                      # builds tools/agp/build/install/agp/bin/agp
+AGP=tools/agp/build/install/agp/bin/agp
+$AGP validate plugins/whatsapp --libs plugins/libraries
+$AGP build    plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp
+$AGP inspect  build/whatsapp.agp
+$AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries
+```
+
+`agp targets` is the quickest way to check a plugin against a real screen: dump it with
+`adb shell uiautomator dump /sdcard/s.xml && adb pull /sdcard/s.xml` (the file stays on your computer).
 
 ## Selector Types
 
@@ -111,7 +151,7 @@ Every step accepts these keys:
 
 ### Unit Tests (JVM, no device needed)
 ```bash
-./gradlew :app:testDebugUnitTest
+./gradlew :core:test :app:testDebugUnitTest
 ```
 
 Tests cover:
@@ -119,55 +159,40 @@ Tests cover:
 - Selector engine (strategy matching, null safety, fallback chain)
 - Execution engine (sequential execution, ABORT/CONTINUE, cancellation)
 - Error handler (retry, timeout, failure after exhaustion)
+- DSL v2: templates and filters, parser (control flow, flows, recursion and template checks), interpreter (branches, fallbacks, try, flow scopes, `expect`, limits, cancellation)
 
 ## Project Structure
 
-```
-app/src/main/java/com/proj/automation/
-├── App.kt                           — Application class
-├── MainActivity.kt                  — Compose UI host
-├── accessibility/
-│   ├── AutomationBridge.kt          — Bridge interface
-│   └── AutomationService.kt         — AccessibilityService implementation
-├── editor/
-│   └── WorkflowEditorScreen.kt      — YAML editor Compose screen
-├── engine/
-│   ├── actions/                     — Individual action handlers
-│   ├── ActionContext.kt             — Handler context
-│   ├── ActionDispatcher.kt          — Handler router
-│   ├── CancellationToken.kt        — Cancellation support
-│   ├── ErrorHandler.kt             — Retry/timeout logic
-│   ├── ExecutionEngine.kt          — Core step loop
-│   └── models.kt                   — Result data classes
-├── parser/
-│   ├── ActionType.kt               — Action type enum
-│   ├── OnFailurePolicy.kt          — Failure policy sealed class
-│   ├── Selector.kt                 — Selector sealed hierarchy
-│   ├── WorkflowAst.kt              — Workflow/Step data classes
-│   ├── YamlParser.kt               — SnakeYAML parser
-│   └── exceptions.kt               — Parse/validation exceptions
-├── selector/
-│   ├── ByClassNameStrategy.kt       — Class name matching
-│   ├── ByContentDescriptionStrategy.kt — Content desc matching
-│   ├── ByResourceIdStrategy.kt      — Resource ID matching
-│   ├── ByTextStrategy.kt            — Text matching
-│   ├── ResolveResult.kt             — Resolution result model
-│   ├── SelectorEngine.kt            — Multi-strategy orchestrator
-│   └── SelectorStrategy.kt          — Strategy interface
-└── service/
-    ├── EventBus.kt                  — Typed pub/sub events
-    └── StateManager.kt              — UI state snapshots
+Three Gradle modules:
 
-app/src/test/java/com/proj/automation/
-├── engine/
-│   ├── ErrorHandlerTest.kt
-│   └── ExecutionEngineTest.kt
-├── parser/
-│   └── YamlParserTest.kt
-└── selector/
-    ├── ByTextStrategyTest.kt
-    └── SelectorEngineTest.kt
+| Module | Contents |
+|--------|----------|
+| `:core` (Kotlin/JVM, no Android) | Plugin packages (`plugin/`: unpacker, lock, manifest, loader, capability guard, builder), workflow language (`dsl/`: syntax tree, parser, templates), v1 parser (`parser/`), element targets and the ranking resolver (`resolve/`), screen snapshots and `uiautomator` XML reading (`ui/`), error codes. Shared with future command-line tools |
+| `:app` (Android) | Interpreter (`dsl/Interpreter.kt`), execution engine and action handlers (`engine/`), accessibility service (`accessibility/`), live snapshots (`ui/UiSnapshots.kt`), v1 selector engine (`selector/`), event bus and state (`service/`), Compose editor (`editor/`) |
+
 ```
+core/src/main/kotlin/com/proj/automation/
+├── dsl/        Ast.kt, DslParser.kt, Templates.kt
+├── parser/     ActionType, Selector, WorkflowAst (Step), YamlParser, OnFailurePolicy, exceptions
+├── resolve/    Target.kt, TargetResolver.kt
+├── ui/         UiNode.kt, UiXml.kt
+└── engine/     ErrorCode.kt
+
+app/src/main/java/com/proj/automation/
+├── App.kt, MainActivity.kt
+├── accessibility/   AutomationBridge.kt, AutomationService.kt
+├── dsl/             Interpreter.kt
+├── editor/          WorkflowEditorScreen.kt
+├── engine/          ExecutionEngine, ErrorHandler, ActionContext, ActionDispatcher,
+│                    HandlerRegistry, CancellationToken, models, actions/
+├── selector/        SelectorEngine + strategies (v1 selectors)
+├── service/         EventBus.kt, StateManager.kt
+└── ui/              UiSnapshots.kt
+```
+
+| `:agp` (`tools/agp`, Kotlin/JVM) | Command-line tool for plugin authors |
+
+Tests: `./gradlew :core:test :app:testDebugUnitTest` (JVM, no device needed).
 
 ## Known Limitations
 
@@ -190,9 +215,9 @@ app/src/test/java/com/proj/automation/
 | [ADR-003](docs/adr/ADR-003-native-accessibility-service.md) | Native AccessibilityService over UI Automator | Accepted |
 | [ADR-004](docs/adr/ADR-004-compose-over-xml.md) | Jetpack Compose over XML layouts | Accepted |
 | [ADR-005](docs/adr/ADR-005-poc-scope-trims.md) | POC scope trims — deferred to Phase 2 | Accepted |
-| [ADR-006](docs/adr/ADR-006-laya-decision-layer.md) | Laya as local decision layer for element resolution | Proposed |
-| [ADR-007](docs/adr/ADR-007-declarative-yaml-plugins.md) | Declarative YAML plugins, intelligence in the base app | Proposed |
-| [ADR-008](docs/adr/ADR-008-channel-abstraction.md) | Channel abstraction, SMS as the first contact channel | Proposed |
+| [ADR-006](docs/adr/ADR-006-laya-decision-layer.md) | Laya as local decision layer for element resolution | Accepted |
+| [ADR-007](docs/adr/ADR-007-declarative-yaml-plugins.md) | Declarative plugin packages (zip of YAML files), intelligence in the base app | Accepted |
+| [ADR-008](docs/adr/ADR-008-channel-abstraction.md) | Channel abstraction, SMS as the first contact channel | Accepted |
 
 ## Vision and Target Architecture
 
