@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # GitHub Actions used by the CI workflow
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  # Gradle plugins and libraries (app, core); minor/patch updates grouped into one PR
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      gradle-minor:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
