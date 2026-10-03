@@ -9,7 +9,7 @@ selected language's map as the reserved `t` scope; the app passes the device loc
 
 ## Technical Context
 
-**Language/Version**: Kotlin 1.9.22 · **Testing**: JUnit 5 (`I18nTest`), replay
+**Language/Version**: Kotlin 2.4 · **Testing**: JUnit 5 (`I18nTest`), replay
 
 ## Constitution Check
 

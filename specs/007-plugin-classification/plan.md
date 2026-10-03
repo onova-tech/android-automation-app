@@ -12,7 +12,7 @@ reclassifies on every reload.
 
 ## Technical Context
 
-**Language/Version**: Kotlin 1.9.22 · **Storage**: `financialApps` in settings ·
+**Language/Version**: Kotlin 2.4 · **Storage**: `financialApps` in settings ·
 **Testing**: JUnit 5 (`ClassificationTest`)
 
 ## Constitution Check

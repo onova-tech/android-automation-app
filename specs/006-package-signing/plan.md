@@ -11,7 +11,7 @@ trusted keys, and shows the state in the install dialog.
 
 ## Technical Context
 
-**Language/Version**: Kotlin 1.9.22 · **Primary Dependencies**: `java.security`, `javax.crypto` ·
+**Language/Version**: Kotlin 2.4 · **Primary Dependencies**: `java.security`, `javax.crypto` ·
 **Storage**: `plugins.json` (signer), `trusted_keys.json` · **Testing**: JUnit 5 (`SigningTest`)
 
 ## Constitution Check

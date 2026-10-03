@@ -10,9 +10,9 @@ reproducible packages from source folders.
 
 ## Technical Context
 
-**Language/Version**: Kotlin 1.9.22, JVM 17
+**Language/Version**: Kotlin 2.4, JVM 17
 
-**Primary Dependencies**: SnakeYAML 2.2; `java.util.zip`; `java.security`
+**Primary Dependencies**: SnakeYAML 2.7; `java.util.zip`; `java.security`
 
 **Storage**: App-private files (`plugins/`, `plugins.json`)
 

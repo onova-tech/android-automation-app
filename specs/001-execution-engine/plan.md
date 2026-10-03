@@ -10,9 +10,9 @@ heuristic ranker that refuses ambiguous matches.
 
 ## Technical Context
 
-**Language/Version**: Kotlin 1.9.22, JVM 17
+**Language/Version**: Kotlin 2.4, JVM 17
 
-**Primary Dependencies**: SnakeYAML 2.2, kotlinx-coroutines 1.7.3
+**Primary Dependencies**: SnakeYAML 2.7, kotlinx-coroutines 1.11
 
 **Storage**: N/A
 

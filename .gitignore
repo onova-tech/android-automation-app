@@ -14,7 +14,7 @@ build/
 app/build/
 
 # Gradle
-/.gradle/
+.gradle/
 
 # Local configuration file (local SDK path) — NEVER commit
 local.properties
