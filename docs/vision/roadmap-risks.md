@@ -56,6 +56,8 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 **Progress (branch `feature/i18n`, 2026-10-01):** plugin texts per language (`i18n/`, `${t.key}`, device language with a default), validated at install, covered by replays.
 
+**Progress (branch `feature/package-signing`, 2026-10-01):** package signatures (ADR-009): `PACKAGE.sig`, `agp keygen/sign/verify/fingerprint`, install states with warnings, trusted developer keys on the phone, signer continuity, financial plugins require a trusted signer.
+
 ### Phase 4 — Semantic resolution (Laya)
 
 - Full `ResolverPipeline`: cache, ranker, Laya, verification.

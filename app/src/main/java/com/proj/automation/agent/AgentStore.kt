@@ -3,7 +3,9 @@ package com.proj.automation.agent
 import android.content.Context
 import com.proj.automation.plugin.Plugin
 import com.proj.automation.plugin.PluginLoader
+import com.proj.automation.plugin.InstalledSigner
 import com.proj.automation.plugin.PluginPackageException
+import com.proj.automation.plugin.SignatureStatus
 import com.proj.automation.security.AuditEntry
 import com.proj.automation.security.AuthState
 import org.json.JSONArray
@@ -35,6 +37,7 @@ class AgentStore(context: Context) {
     private val settingsFile = File(dir, "settings.json")
     private val authFile = File(dir, "auth.json")
     private val auditFile = File(dir, "audit.jsonl")
+    private val trustedFile = File(dir, "trusted_keys.json")
 
     // ——— Plugins ———
 
@@ -47,8 +50,12 @@ class AgentStore(context: Context) {
             val file = File(pluginsDir, "$keyword.agp")
             try {
                 val plugin = PluginLoader.load(file.readBytes())
+                val signer = (plugin.signature as? SignatureStatus.Valid)?.fingerprint
                 if (plugin.packageHash != entry.getString("hash")) {
                     problems += "$keyword: package changed on disk since it was approved; not loaded"
+                } else if (signer != entry.optString("signer").ifEmpty { null }) {
+                    // the signature is outside the package hash, so it is checked on its own
+                    problems += "$keyword: signature changed on disk since it was approved; not loaded"
                 } else {
                     loaded += InstalledPlugin(keyword, plugin)
                 }
@@ -64,7 +71,8 @@ class AgentStore(context: Context) {
     fun installPlugin(keyword: String, bytes: ByteArray, plugin: Plugin) {
         File(pluginsDir, "$keyword.agp").writeBytes(bytes)
         val index = readJson(pluginsIndex) ?: JSONObject()
-        index.put(keyword, JSONObject().put("id", plugin.manifest.id).put("hash", plugin.packageHash))
+        val signer = (plugin.signature as? SignatureStatus.Valid)?.fingerprint
+        index.put(keyword, JSONObject().put("id", plugin.manifest.id).put("hash", plugin.packageHash).put("signer", signer ?: ""))
         writeAtomically(pluginsIndex, index.toString(2))
     }
 
@@ -73,6 +81,29 @@ class AgentStore(context: Context) {
         val index = readJson(pluginsIndex) ?: return
         index.remove(keyword)
         writeAtomically(pluginsIndex, index.toString(2))
+    }
+
+    /** Signer of the installed plugin with this id, for signer continuity (ADR-009) */
+    fun installedSigner(pluginId: String): InstalledSigner? {
+        val index = readJson(pluginsIndex) ?: return null
+        for (keyword in index.keys()) {
+            val e = index.getJSONObject(keyword)
+            if (e.getString("id") == pluginId) return InstalledSigner(e.optString("signer").ifEmpty { null })
+        }
+        return null
+    }
+
+    // ——— Trusted developer keys ———
+
+    fun trustedKeys(): Map<String, String> {
+        val json = readJson(trustedFile) ?: return emptyMap()
+        return json.keys().asSequence().associateWith { json.getString(it) }
+    }
+
+    fun saveTrustedKeys(keys: Map<String, String>) {
+        val json = JSONObject()
+        keys.forEach { (fp, name) -> json.put(fp, name) }
+        writeAtomically(trustedFile, json.toString(2))
     }
 
     // ——— Settings ———

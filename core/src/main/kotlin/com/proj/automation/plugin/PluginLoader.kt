@@ -30,7 +30,8 @@ data class Plugin(
     /** Names of the interrupt rules applied to every skill */
     val interruptRules: List<String> = emptyList(),
     /** Texts by language from `i18n/` */
-    val strings: Map<String, Map<String, String>> = emptyMap()
+    val strings: Map<String, Map<String, String>> = emptyMap(),
+    val signature: SignatureStatus = SignatureStatus.Unsigned
 ) {
     val languages: List<String> get() = strings.keys.sorted()
 
@@ -55,6 +56,10 @@ data class Plugin(
         if (languages.isNotEmpty()) appendLine("Languages: ${languages.joinToString()} (default ${m.defaultLanguage})")
         if (interruptRules.isNotEmpty()) appendLine("Handles unexpected dialogs: ${interruptRules.joinToString()}")
         if (m.libraries.isNotEmpty()) appendLine("Bundled libraries: ${m.libraries.entries.joinToString { "${it.key} ${it.value}" }}")
+        appendLine(when (val sig = signature) {
+            SignatureStatus.Unsigned -> "Signature: NONE (identity could not be verified)"
+            is SignatureStatus.Valid -> "Signed by key: ${sig.fingerprint}"
+        })
         append("Package hash: $packageHash")
     }
 }
@@ -81,6 +86,7 @@ object PluginLoader {
         }
 
         val (lock, packageHash) = PackageLock.verify(files)
+        val signature = PackageSignature.verify(files.text(PackageSignature.FILE), packageHash)
         val manifest = Manifest.parse(doc("plugin.yaml"))
 
         // ——— Libraries (vendored under lib/<id>/) ———
@@ -179,7 +185,8 @@ object PluginLoader {
             fixtures = files.paths("fixtures/"),
             readme = files.text("README.md"),
             interruptRules = interrupts.map { it.name },
-            strings = strings
+            strings = strings,
+            signature = signature
         )
     }
 

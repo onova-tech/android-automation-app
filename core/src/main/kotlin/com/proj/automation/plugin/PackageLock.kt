@@ -30,7 +30,7 @@ data class PackageLock(val files: Map<String, String>, val libraries: Map<String
             MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
         fun forFiles(entries: Map<String, ByteArray>, libraries: Map<String, String>) =
-            PackageLock(entries.filterKeys { it != FILE }.mapValues { sha256(it.value) }, libraries)
+            PackageLock(entries.filterKeys { it != FILE && it != PackageSignature.FILE }.mapValues { sha256(it.value) }, libraries)
 
         fun parse(text: String): PackageLock {
             val lines = text.lines().filter { it.isNotBlank() }
@@ -52,7 +52,8 @@ data class PackageLock(val files: Map<String, String>, val libraries: Map<String
         fun verify(files: PackageFiles): Pair<PackageLock, String> {
             val text = files.text(FILE) ?: throw PluginPackageException("Missing $FILE; build packages with the agp tool")
             val lock = parse(text)
-            val actual = files.entries.keys - FILE
+            // the signature covers the lock's hash, so it is the one file the lock does not list
+            val actual = files.entries.keys - FILE - PackageSignature.FILE
             val missing = lock.files.keys - actual
             val extra = actual - lock.files.keys
             if (missing.isNotEmpty()) throw PluginPackageException("$FILE lists files that are not in the package: $missing")

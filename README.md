@@ -74,6 +74,16 @@ $AGP test     plugins/whatsapp --libs plugins/libraries        # replay tests/ a
 $AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries --lang pt
 ```
 
+Signing (ADR-009): developers sign packages like APKs. Unsigned packages still install, with a
+warning that their identity could not be verified; financial plugins need a trusted signer.
+
+```bash
+$AGP keygen -o ~/keys/ana.key --name "Ana"            # passphrase from AGP_KEY_PASSWORD or the terminal
+$AGP build  plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp --key ~/keys/ana.key
+$AGP verify build/whatsapp.agp                        # prints the signer's key fingerprint
+$AGP fingerprint ~/keys/ana.pub                       # share this with users so they can trust the key
+```
+
 `agp test` runs each skill test with the same engine as the phone, against recorded screens, in
 virtual time. The WhatsApp example has six (sent, not confirmed, chat does not open, a dialog in
 the way, read chat, and a phone set to English with a changed button id).
@@ -125,3 +135,4 @@ screen to add allowed senders, generate a code sheet and install plugins.
 | [ADR-006](docs/adr/ADR-006-laya-decision-layer.md) | Laya as local decision layer for element resolution | Accepted |
 | [ADR-007](docs/adr/ADR-007-declarative-yaml-plugins.md) | Declarative plugin packages (zip of YAML files), intelligence in the base app | Accepted |
 | [ADR-008](docs/adr/ADR-008-channel-abstraction.md) | Channel abstraction, SMS as the first contact channel | Accepted |
+| [ADR-009](docs/adr/ADR-009-package-signing.md) | Signing plugin packages | Accepted |

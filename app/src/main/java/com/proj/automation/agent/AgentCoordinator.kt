@@ -14,6 +14,8 @@ import com.proj.automation.engine.ActionDispatcher
 import com.proj.automation.engine.ErrorHandler
 import com.proj.automation.engine.ExecutionEngine
 import com.proj.automation.engine.buildHandlerRegistry
+import com.proj.automation.plugin.InstallDecision
+import com.proj.automation.plugin.InstallPolicy
 import com.proj.automation.plugin.Plugin
 import com.proj.automation.security.AuditEntry
 import com.proj.automation.security.AuditLog
@@ -90,8 +92,25 @@ object AgentCoordinator {
     // ——— Admin operations (call only from the on-device admin UI) ———
 
     suspend fun installPlugin(keyword: String, bytes: ByteArray, plugin: Plugin) = mutex.withLock {
+        // checked again here, so no caller can skip the policy
+        val decision = InstallPolicy.evaluate(plugin, store.trustedKeys(), store.installedSigner(plugin.manifest.id))
+        if (decision is InstallDecision.Blocked) throw com.proj.automation.plugin.PluginPackageException(decision.reason)
         store.installPlugin(keyword, bytes, plugin)
         reload()
+    }
+
+    /** What the install policy says about a loaded package (signature, signer continuity, financial rule) */
+    fun installDecision(plugin: Plugin, alsoTrusted: Map<String, String> = emptyMap()): InstallDecision =
+        InstallPolicy.evaluate(plugin, store.trustedKeys() + alsoTrusted, store.installedSigner(plugin.manifest.id))
+
+    fun trustedKeys(): Map<String, String> = store.trustedKeys()
+
+    suspend fun trustKey(fingerprint: String, name: String) = mutex.withLock {
+        store.saveTrustedKeys(store.trustedKeys() + (fingerprint to name))
+    }
+
+    suspend fun untrustKey(fingerprint: String) = mutex.withLock {
+        store.saveTrustedKeys(store.trustedKeys() - fingerprint)
     }
 
     suspend fun removePlugin(keyword: String) = mutex.withLock {

@@ -4,6 +4,8 @@ import com.proj.automation.plugin.PackageBuilder
 import com.proj.automation.plugin.PluginLoader
 import com.proj.automation.plugin.PluginPackageException
 import com.proj.automation.plugin.Plugin
+import com.proj.automation.plugin.PackageSignature
+import com.proj.automation.plugin.SignatureStatus
 import com.proj.automation.replay.Replay
 import com.proj.automation.resolve.Resolution
 import com.proj.automation.resolve.TargetResolver
@@ -15,8 +17,13 @@ private const val USAGE = """agp — plugin tool for the Android automation runt
 
 Usage:
   agp validate <plugin-dir> [--libs <dir>]          check a plugin folder and print its install summary
-  agp build <plugin-dir> [--libs <dir>] -o <file>   build a reproducible .agp package
+  agp build <plugin-dir> [--libs <dir>] -o <file> [--key <file.key>]
+                                                    build a reproducible .agp package (signed with --key)
   agp inspect <file.agp>                            verify a package and print its install summary
+  agp keygen -o <name.key> --name <developer>       create a signing key (name.key + name.pub)
+  agp sign <file.agp> --key <file.key> [-o <out>]   sign a built package
+  agp verify <file.agp>                             show who signed a package (exit 1 if unsigned)
+  agp fingerprint <file.pub|file.key>               show a key's fingerprint, to share with users
   agp test <plugin-dir> [--libs <dir>]              run the replay tests in tests/ against fixtures/
   agp targets <plugin-dir|file.agp> <dump.xml> [--libs <dir>] [--lang <code>]
                                                     resolve every named target against a
@@ -27,6 +34,9 @@ fun main(args: Array<String>) {
     val code = try {
         run(args.toList())
     } catch (e: PluginPackageException) {
+        System.err.println("error: ${e.message}")
+        1
+    } catch (e: KeyFileException) {
         System.err.println("error: ${e.message}")
         1
     } catch (e: UsageException) {
@@ -42,7 +52,8 @@ internal fun run(args: List<String>): Int {
     val command = args.firstOrNull() ?: throw UsageException("missing command")
     val rest = args.drop(1)
     val libs = option(rest, "--libs")?.let(::File)
-    val positional = positional(rest, setOf("--libs", "-o", "--lang"))
+    val positional = positional(rest, setOf("--libs", "-o", "--lang", "--key", "--name"))
+    fun signingKey(): java.security.KeyPair? = option(rest, "--key")?.let { KeyFiles.read(File(it), KeyFiles.password("Passphrase for $it: ")) }
 
     when (command) {
         "validate" -> {
@@ -52,7 +63,7 @@ internal fun run(args: List<String>): Int {
         }
         "build" -> {
             val out = option(rest, "-o")?.let(::File) ?: throw UsageException("build needs -o <file>")
-            val result = PackageBuilder.build(dir(positional, 0), libs)
+            val result = PackageBuilder.build(dir(positional, 0), libs, signingKey())
             out.absoluteFile.parentFile.mkdirs()
             out.writeBytes(result.bytes)
             println(result.plugin.installSummary())
@@ -67,6 +78,36 @@ internal fun run(args: List<String>): Int {
             val dump = positional.getOrNull(1)?.let(::File) ?: throw UsageException("targets needs a dump.xml")
             val plugin = if (source.isDirectory) PackageBuilder.build(source, libs).plugin else PluginLoader.load(source.readBytes())
             return checkTargets(plugin, dump, option(rest, "--lang"))
+        }
+        "keygen" -> {
+            val out = option(rest, "-o")?.let(::File) ?: throw UsageException("keygen needs -o <name.key>")
+            val name = option(rest, "--name") ?: throw UsageException("keygen needs --name <developer>")
+            val pub = File(out.path.removeSuffix(".key") + ".pub")
+            val keys = KeyFiles.generate()
+            KeyFiles.write(out, pub, keys, name, KeyFiles.password("New passphrase for ${out.path}: "))
+            println("Wrote ${out.path} (private, keep it secret) and ${pub.path} (public)")
+            println("Fingerprint: ${KeyFiles.describe(pub).first}")
+        }
+        "sign" -> {
+            val file = positional.getOrNull(0)?.let(::File) ?: throw UsageException("sign needs a .agp file")
+            val keys = signingKey() ?: throw UsageException("sign needs --key <file.key>")
+            val out = option(rest, "-o")?.let(::File) ?: file
+            val signed = PackageSignature.signPackage(file.readBytes(), keys.private, keys.public)
+            out.writeBytes(signed)
+            println("Signed ${out.path} with key ${PackageSignature.fingerprint(keys.public.encoded)}")
+        }
+        "verify" -> {
+            val file = positional.getOrNull(0)?.let(::File) ?: throw UsageException("verify needs a .agp file")
+            val plugin = PluginLoader.load(file.readBytes())
+            return when (val sig = plugin.signature) {
+                SignatureStatus.Unsigned -> { println("UNSIGNED: the identity of this package cannot be verified"); 1 }
+                is SignatureStatus.Valid -> { println("Signature valid. Key fingerprint: ${sig.fingerprint}"); 0 }
+            }
+        }
+        "fingerprint" -> {
+            val file = positional.getOrNull(0)?.let(::File) ?: throw UsageException("fingerprint needs a .pub or .key file")
+            val (fp, name) = KeyFiles.describe(file)
+            println("$fp${if (name.isNotEmpty()) "  ($name)" else ""}")
         }
         "test" -> {
             val dir = dir(positional, 0)
