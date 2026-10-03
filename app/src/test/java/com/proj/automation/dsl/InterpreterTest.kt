@@ -8,7 +8,8 @@ import com.proj.automation.engine.ErrorCode
 import com.proj.automation.engine.ErrorHandler
 import com.proj.automation.engine.models.StepResult
 import com.proj.automation.parser.Step
-import com.proj.automation.selector.SelectorEngine
+import com.proj.automation.ui.Bounds
+import com.proj.automation.ui.UiNode
 import com.proj.automation.service.EventBus
 import io.mockk.*
 import kotlinx.coroutines.CancellationException
@@ -20,17 +21,18 @@ import org.junit.jupiter.api.Test
 class InterpreterTest {
 
     private val dispatcher: ActionDispatcher = mockk()
-    private val selectorEngine: SelectorEngine = mockk()
     private val automation: AutomationBridge = mockk(relaxed = true)
     private val token = CancellationToken()
-    private val context = ActionContext(automation, selectorEngine, mockk(relaxed = true), token)
+    /** Element texts that "exist" on the fake screen */
+    private val onScreen = mutableSetOf<String>()
+
+    private val context = ActionContext(automation, mockk(relaxed = true), token, snapshot = {
+        UiNode(bounds = Bounds(0, 0, 100, 100), children = onScreen.map { UiNode(text = it, clickable = true) })
+    })
     private val parser = DslParser()
 
     /** Steps the dispatcher received, after template rendering */
     private val dispatched = mutableListOf<Step>()
-
-    /** Element texts that "exist" on the fake screen */
-    private val onScreen = mutableSetOf<String>()
 
     /** Texts of elements whose click fails */
     private val failingClicks = mutableSetOf<String>()
@@ -38,14 +40,10 @@ class InterpreterTest {
     @BeforeEach
     fun setup() {
         every { automation.getRootNode() } returns null
-        every { selectorEngine.resolve(any(), any()) } answers {
-            val selector = firstArg<com.proj.automation.parser.Selector>()
-            if (selector is com.proj.automation.parser.Selector.ByText && selector.text in onScreen) mockk() else null
-        }
         coEvery { dispatcher.dispatch(any(), any()) } answers {
             val step = firstArg<Step>()
             dispatched += step
-            val text = (step.selector as? com.proj.automation.parser.Selector.ByText)?.text
+            val text = step.target?.hints?.text
             when {
                 text != null && text in failingClicks ->
                     StepResult(0, step.action, false, 1, "Element not found", ErrorCode.E_NOT_FOUND)
@@ -113,8 +111,8 @@ class InterpreterTest {
             """
             steps:
               - first_that_works:
-                  - click: { selector: { text: "A" } }
-                  - click: { selector: { text: "B" } }
+                  - click: { target: { hints: { text: "A" } } }
+                  - click: { target: { hints: { text: "B" } } }
             """
         )
         assertEquals(RunStatus.SUCCEEDED, result.status)
@@ -128,8 +126,8 @@ class InterpreterTest {
             """
             steps:
               - first_that_works:
-                  - click: { selector: { text: "A" } }
-                  - click: { selector: { text: "B" } }
+                  - click: { target: { hints: { text: "A" } } }
+                  - click: { target: { hints: { text: "B" } } }
             """
         )
         assertEquals(RunStatus.FAILED, result.status)
@@ -143,7 +141,7 @@ class InterpreterTest {
             """
             steps:
               - try:
-                  do: [ { click: { selector: { text: "A" } } } ]
+                  do: [ { click: { target: { hints: { text: "A" } } } } ]
                   on_error: [ { return: "failed with ${'$'}{error.code}" } ]
             """
         )
@@ -192,7 +190,7 @@ class InterpreterTest {
         val result = run(
             """
             steps:
-              - read_text: { selector: { text: "Saldo" }, into: balance }
+              - read_text: { target: { hints: { text: "Saldo" } }, into: balance }
               - return: "Balance ${'$'}{balance}"
             """
         )
@@ -205,7 +203,7 @@ class InterpreterTest {
             """
             steps:
               - click:
-                  selector: { text: "Enviar" }
+                  target: { hints: { text: "Enviar" } }
                   expect: { exists: { text: "sent" } }
               - log: { message: "not reached" }
             """
@@ -233,7 +231,7 @@ class InterpreterTest {
         val result = run(
             """
             steps:
-              - click: { selector: { text: "A" }, on_failure: continue }
+              - click: { target: { hints: { text: "A" } }, on_failure: continue }
               - log: { message: "after" }
             """
         )
@@ -282,7 +280,7 @@ class InterpreterTest {
             if (step.action.yamlValue == "click") "not approved" else null
         }
         val program = parser.parse(
-            "steps:\n  - try:\n      do: [ { click: { selector: { text: A } } } ]\n      on_error: [ { return: handled } ]"
+            "steps:\n  - try:\n      do: [ { click: { target: { hints: { text: A } } } } ]\n      on_error: [ { return: handled } ]"
         )
         val result = interpreter().run(program, emptyMap(), context, guard)
         assertEquals(RunStatus.FAILED, result.status)

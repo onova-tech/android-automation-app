@@ -5,10 +5,8 @@ import org.yaml.snakeyaml.Yaml
 import java.io.StringReader
 
 /**
- * Parses YAML workflow strings into typed Workflow objects using SnakeYAML 2.x.
- *
- * Handles polymorphic action deserialization, selector parsing, and error reporting
- * with line/column information for malformed input.
+ * Safe YAML loading (SnakeYAML 2.x with alias, recursion and duplicate-key limits) and parsing of
+ * single action steps. Programs, skills and flows are parsed by [com.proj.automation.dsl.DslParser].
  */
 class YamlParser {
 
@@ -16,48 +14,6 @@ class YamlParser {
 
     constructor() {
         this.yaml = createSafeLoader()
-    }
-
-    /**
-     * Parse a YAML string into a typed Workflow object.
-     *
-     * @throws YamlParseException if the YAML is malformed or has invalid actions
-     * @throws ValidationException if required parameters are missing
-     */
-    fun parse(yamlString: String): Workflow {
-        return try {
-            val reader = StringReader(yamlString)
-            val raw = yaml.load<Map<String, Any?>>(reader)
-
-            if (raw == null) {
-                throw YamlParseException("Empty YAML document", line = 0, column = 0)
-            }
-
-            val name = raw["name"] as? String
-            val description = raw["description"] as? String
-            val variables = (raw["variables"] as? Map<*, *>)?.mapKeys { it.key.toString() }
-                ?.mapValues { it.value.toString() } ?: emptyMap()
-            val rawSteps: List<Any?> = raw["steps"] as? List<Any?> ?: emptyList()
-
-            val steps = rawSteps.mapIndexed { index, stepRaw ->
-                parseStep(stepRaw, index + 1)
-            }
-
-            Workflow(
-                name = name,
-                description = description,
-                steps = steps,
-                variables = variables
-            )
-        } catch (e: YamlParseException) {
-            throw e
-        } catch (e: Exception) {
-            throw YamlParseException(
-                message = "YAML parse error: ${e.message}",
-                line = 0,
-                column = 0
-            )
-        }
     }
 
     /** Loads a YAML document as a map, wrapping errors in [YamlParseException] */
@@ -114,7 +70,9 @@ class YamlParser {
         val params = rawParams.mapKeys { it.key.toString() }
             .mapValues { it.value?.toString() ?: "" }
 
-        val selector = parseSelector(rawParams["selector"] as? Map<*, *>)
+        if ("selector" in rawParams) {
+            throw YamlParseException("Step $stepIndex: 'selector' was replaced by 'target'", line = stepIndex, column = 0)
+        }
         val target = (rawParams["target"] as? Map<*, *>)?.let {
             try {
                 com.proj.automation.resolve.Target.parse(it)
@@ -122,14 +80,10 @@ class YamlParser {
                 throw YamlParseException("Step $stepIndex target: ${e.message}", line = stepIndex, column = 0)
             }
         }
-        if (selector != null && target != null) {
-            throw YamlParseException("Step $stepIndex has both 'selector' and 'target'; use one", line = stepIndex, column = 0)
-        }
 
         return Step(
             action = actionType,
             parameters = params,
-            selector = selector,
             target = target,
             retries = (rawParams["retries"] as? Number)?.toInt() ?: 1,
             retryDelayMs = (rawParams["retry_delay"] as? Number)?.toLong()
@@ -138,30 +92,6 @@ class YamlParser {
                 ?: (rawParams["timeoutMs"] as? Number)?.toLong() ?: 30000,
             onFailure = parseOnFailurePolicy(rawParams["on_failure"] as? String)
         )
-    }
-
-    internal fun parseSelector(raw: Map<*, *>?): Selector? {
-        if (raw == null) return null
-        return when {
-            "text" in raw -> Selector.ByText(raw["text"].toString())
-            "resource_id" in raw -> Selector.ByResourceId(raw["resource_id"].toString())
-            "content_description" in raw -> Selector.ByContentDescription(
-                raw["content_description"].toString()
-            )
-            "class_name" in raw -> Selector.ByClassName(
-                raw["class_name"].toString(),
-                (raw["index"] as? Number)?.toInt()
-            )
-            "fallback" in raw -> {
-                val fallbackList: List<Any?> = raw["fallback"] as? List<Any?> ?: emptyList()
-                val selectors = fallbackList.mapNotNull {
-                    @Suppress("UNCHECKED_CAST")
-                    parseSelector(it as? Map<*, *>)
-                }
-                if (selectors.isNotEmpty()) Selector.Composite(selectors) else null
-            }
-            else -> null
-        }
     }
 
     private fun parseOnFailurePolicy(raw: String?): OnFailurePolicy {

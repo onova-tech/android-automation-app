@@ -7,7 +7,7 @@ import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Step
 
 /**
- * Reads the text of the element matched by the selector or target. Falls back to the content
+ * Reads the text of the element matched by the target. Falls back to the content
  * description, which is where Flutter apps (e.g. Nubank) expose their labels and values.
  * The value is returned in `details["value"]`; the DSL binds it with `into: <variable>`.
  */

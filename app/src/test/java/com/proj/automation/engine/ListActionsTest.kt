@@ -46,7 +46,7 @@ class ListActionsTest {
         )
     )
 
-    private val context = ActionContext(automation, mockk(), mockk(relaxed = true), CancellationToken(), snapshot = { screen() })
+    private val context = ActionContext(automation, mockk(relaxed = true), CancellationToken(), snapshot = { screen() })
 
     init {
         every { automation.scrollForward(listRef) } answers { if (page < pages.lastIndex) { page++; true } else true }

@@ -7,7 +7,7 @@ import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Step
 
 /**
- * Finds an element by selector or target and taps it. Makes a single attempt;
+ * Finds the element of the step's target and taps it. Makes a single attempt;
  * retries are applied by [com.proj.automation.engine.ErrorHandler].
  */
 class ClickHandler : ActionHandler {

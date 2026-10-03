@@ -13,9 +13,3 @@ class UnknownActionException(
 ) : Exception(
     "Unknown action '$unknownAction'. Valid actions: ${ActionType.values.joinToString(", ")}"
 )
-
-/** Thrown when a parsed step has missing required parameters */
-class ValidationException(
-    val field: String,
-    message: String
-) : Exception("Validation error in '$field': $message")

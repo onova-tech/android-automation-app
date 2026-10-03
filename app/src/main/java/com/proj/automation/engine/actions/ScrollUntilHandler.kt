@@ -9,7 +9,7 @@ import com.proj.automation.parser.Step
 import kotlinx.coroutines.delay
 
 /**
- * Scrolls until the step's selector or target is on screen. Stops at `max_scrolls`
+ * Scrolls until the step's target is on screen. Stops at `max_scrolls`
  * (default 10) or when the list no longer moves. Parameters: `direction`, `max_scrolls`.
  */
 class ScrollUntilHandler : ActionHandler {

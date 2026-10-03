@@ -21,8 +21,8 @@ class TypeHandler : ActionHandler {
         val text = step.parameters["text"] as? String
             ?: throw HandlerException("type requires 'text' parameter", actionType)
 
-        // With a selector or target, type into that element
-        if (step.selector != null || step.target != null) {
+        // With a target, type into that element
+        if (step.target != null) {
             return when (val lookup = context.locate(step)) {
                 is ActionContext.Lookup.Missing -> StepResult(
                     stepIndex = 0, action = actionType, success = false,

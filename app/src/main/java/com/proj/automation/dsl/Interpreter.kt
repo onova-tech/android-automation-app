@@ -10,27 +10,6 @@ import com.proj.automation.parser.OnFailurePolicy
 import com.proj.automation.service.EventBus
 import kotlin.coroutines.cancellation.CancellationException
 
-/** Global bounds on a single run, enforced whatever the program says */
-data class RunLimits(
-    val maxActions: Int = 500,
-    val maxNodes: Int = 5_000,
-    val maxCallDepth: Int = 8,
-    val maxDurationMs: Long = 10 * 60 * 1000L
-)
-
-enum class RunStatus { SUCCEEDED, FAILED, CANCELLED }
-
-data class RunResult(
-    val status: RunStatus,
-    val errorCode: ErrorCode? = null,
-    val message: String? = null,
-    /** Value of the top-level `return`, if any */
-    val returnValue: String? = null,
-    /** Every action executed, in order */
-    val steps: List<StepResult> = emptyList(),
-    val durationMs: Long = 0
-)
-
 /**
  * Executes DSL v2 programs. Actions go through the existing [ErrorHandler] (retries, timeouts,
  * `on_failure`) and [ActionDispatcher]. Control flow, variables, post-conditions and global
@@ -77,7 +56,7 @@ class Interpreter(
             RunResult(status, code, message, value, run.steps.toList(), System.currentTimeMillis() - start)
 
         return try {
-            val scope = Scope(program.variables)
+            val scope = Scope()
             // Program arguments come from outside (e.g. an SMS) and are bound literally, never rendered
             bindParams(program.params, args, scope, "program")
             exec(program.body, scope, run, depth = 0)
@@ -203,9 +182,7 @@ class Interpreter(
     }
 
     private fun eval(condition: Condition, scope: Scope, run: Run): Boolean = when (condition) {
-        is Condition.Exists -> resolves(condition.selector, scope, run)
-        is Condition.NotExists -> !resolves(condition.selector, scope, run)
-        is Condition.TargetExists -> {
+        is Condition.Exists -> {
             val target = condition.target.map { Templates.render(it, scope) }
             val found = run.context.targetResolver.resolve(target, run.context.snapshot()) is com.proj.automation.resolve.Resolution.Found
             found != condition.negate
@@ -216,11 +193,6 @@ class Interpreter(
         is Condition.Not -> !eval(condition.condition, scope, run)
         is Condition.All -> condition.conditions.all { eval(it, scope, run) }
         is Condition.AnyOf -> condition.conditions.any { eval(it, scope, run) }
-    }
-
-    private fun resolves(selector: com.proj.automation.parser.Selector, scope: Scope, run: Run): Boolean {
-        val rendered = DslParser.mapSelector(selector) { Templates.render(it, scope) }
-        return run.context.selectorEngine.resolve(rendered, run.context.automation.getRootNode()) != null
     }
 
     /** Binds already-rendered [args] and defaults into [target]; missing required ones fail. */

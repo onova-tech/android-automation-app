@@ -40,9 +40,7 @@ class TargetActionsTest {
         )
     )
 
-    private val context = ActionContext(
-        automation, mockk(), mockk(relaxed = true), CancellationToken(), snapshot = { screen }
-    )
+    private val context = ActionContext(automation, mockk(relaxed = true), CancellationToken(), snapshot = { screen })
 
     @Test
     fun `click resolves a target and taps the live node`() = runTest {
@@ -112,14 +110,11 @@ class TargetActionsTest {
         assertEquals(Role.BUTTON, target.role)
         assertEquals(0.7, target.minConfidence)
         assertEquals("send \${who}", target.intent)
-        assertTrue((action.expect as Condition.TargetExists).negate)
+        assertTrue((action.expect as Condition.Exists).negate)
     }
 
     @Test
-    fun `parser rejects selector plus target and bad targets`() {
-        assertThrows<YamlParseException> {
-            DslParser().parse("steps:\n  - click: { selector: { text: a }, target: { intent: a } }")
-        }
+    fun `parser rejects bad targets`() {
         assertThrows<YamlParseException> {
             DslParser().parse("steps:\n  - click: { target: { role: button } }")
         }

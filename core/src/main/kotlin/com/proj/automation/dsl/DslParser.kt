@@ -1,14 +1,14 @@
 package com.proj.automation.dsl
 
-import com.proj.automation.parser.Selector
 import com.proj.automation.parser.Step
 import com.proj.automation.parser.YamlParseException
 import com.proj.automation.parser.YamlParser
+import com.proj.automation.resolve.Target
 
 /**
- * Parses DSL v2 programs. Accepts every v1 workflow unchanged; adds control-flow steps
+ * Parses the workflow language used by plugin skills and flows: actions, control flow
  * (`sequence`, `if`, `first_that_works`, `try`, `call`, `set`, `assert`, `return`),
- * `expect` post-conditions on actions, `into` bindings, `params` and reusable `flows`.
+ * `expect` post-conditions, `into` bindings, `params` and reusable `flows`.
  *
  * Everything that can be checked statically is checked here: template syntax and filters,
  * condition shapes, unknown flows and recursive flow calls.
@@ -44,8 +44,6 @@ class DslParser(
             name = doc["name"] as? String,
             description = doc["description"] as? String,
             params = parseParams(doc["params"], "params"),
-            variables = (doc["variables"] as? Map<*, *>).orEmpty()
-                .entries.associate { it.key.toString() to it.value.toString() },
             flows = flows + externalFlows,
             body = parseSteps(doc["steps"], "steps")
         )
@@ -125,7 +123,6 @@ class DslParser(
             fail(path, e.message ?: "invalid action")
         }
         step.parameters.forEach { (k, v) -> (v as? String)?.let { template(it, "$path.$key.$k") } }
-        step.selector?.let { selectorStrings(it).forEach { s -> template(s, "$path.$key.selector") } }
         step.target?.let { it.strings().forEach { s -> template(s, "$path.$key.target") } }
         return Node.Action(step, expect)
     }
@@ -144,21 +141,7 @@ class DslParser(
         val key = keys.first()
         val value = raw[key]
         return when (key) {
-            "exists", "not_exists" -> {
-                val negate = key == "not_exists"
-                val targetRaw = (value as? Map<*, *>)?.get("target")
-                    ?.let { if (it is String) namedTarget(it, "$path.$key.target") else it }
-                if (targetRaw != null) {
-                    val t = try {
-                        com.proj.automation.resolve.Target.parse(targetRaw as? Map<*, *> ?: fail("$path.$key.target", "must be a mapping"))
-                    } catch (e: IllegalArgumentException) {
-                        fail("$path.$key.target", e.message ?: "invalid target")
-                    }
-                    t.strings().forEach { template(it, "$path.$key.target") }
-                    Condition.TargetExists(t, negate)
-                } else if (negate) Condition.NotExists(selector(value, "$path.$key"))
-                else Condition.Exists(selector(value, "$path.$key"))
-            }
+            "exists", "not_exists" -> Condition.Exists(conditionTarget(value, "$path.$key"), negate = key == "not_exists")
             "screen_is" -> {
                 if (inScreen) fail("$path.screen_is", "screen signals cannot use screen_is")
                 val name = value?.toString() ?: fail("$path.screen_is", "needs a screen name")
@@ -184,10 +167,28 @@ class DslParser(
         }
     }
 
-    private fun selector(raw: Any?, path: String): Selector {
-        val s = yamlParser.parseSelector(raw as? Map<*, *>) ?: fail(path, "invalid selector")
-        selectorStrings(s).forEach { template(it, path) }
-        return s
+    /**
+     * The element a condition is about. Accepted forms: a named target (`exists: send_button`),
+     * `{ target: <name or mapping> }`, a target mapping (`{ intent: ..., role: ... }`), or just
+     * exact hints (`{ text: "OK" }`).
+     */
+    private fun conditionTarget(value: Any?, path: String): Target {
+        val raw: Map<*, *> = when {
+            value is String -> namedTarget(value, path)
+            value is Map<*, *> && "target" in value -> value["target"].let {
+                if (it is String) namedTarget(it, "$path.target") else it as? Map<*, *> ?: fail("$path.target", "must be a mapping or a name")
+            }
+            value is Map<*, *> && value.keys.all { it in HINT_KEYS } -> mapOf("hints" to value)
+            value is Map<*, *> -> value
+            else -> fail(path, "needs a target")
+        }
+        val target = try {
+            Target.parse(raw)
+        } catch (e: IllegalArgumentException) {
+            fail(path, e.message ?: "invalid target")
+        }
+        target.strings().forEach { template(it, path) }
+        return target
     }
 
     private fun pair(raw: Any?, path: String): Pair<String, String> {
@@ -249,30 +250,14 @@ class DslParser(
         throw YamlParseException("$path: $message", line = 0, column = 0)
 
     companion object {
-        val TOP_LEVEL_KEYS = setOf("name", "description", "params", "variables", "flows", "steps")
+        val TOP_LEVEL_KEYS = setOf("name", "description", "params", "flows", "steps")
+        private val HINT_KEYS = setOf("text", "content_description", "resource_id")
         val CONDITION_KEYS = setOf("exists", "not_exists", "screen_is", "equals", "contains", "is_set", "not", "all", "any")
-
-        fun selectorStrings(selector: Selector): List<String> = when (selector) {
-            is Selector.ByText -> listOf(selector.text)
-            is Selector.ByResourceId -> listOf(selector.resourceId)
-            is Selector.ByContentDescription -> listOf(selector.description)
-            is Selector.ByClassName -> listOf(selector.className)
-            is Selector.Composite -> selector.fallbackOrder.flatMap { selectorStrings(it) }
-        }
-
-        fun mapSelector(selector: Selector, f: (String) -> String): Selector = when (selector) {
-            is Selector.ByText -> Selector.ByText(f(selector.text))
-            is Selector.ByResourceId -> Selector.ByResourceId(f(selector.resourceId))
-            is Selector.ByContentDescription -> Selector.ByContentDescription(f(selector.description))
-            is Selector.ByClassName -> selector.copy(className = f(selector.className))
-            is Selector.Composite -> Selector.Composite(selector.fallbackOrder.map { mapSelector(it, f) })
-        }
     }
 }
 
-/** Renders every template in a step's parameters, selector and target */
+/** Renders every template in a step's parameters and target */
 fun Step.rendered(scope: Scope): Step = copy(
     parameters = parameters.mapValues { (_, v) -> (v as? String)?.let { Templates.render(it, scope) } ?: v },
-    selector = selector?.let { DslParser.mapSelector(it) { s -> Templates.render(s, scope) } },
     target = target?.map { s -> Templates.render(s, scope) }
 )

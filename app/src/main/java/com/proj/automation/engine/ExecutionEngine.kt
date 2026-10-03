@@ -1,19 +1,18 @@
 package com.proj.automation.engine
 
 import com.proj.automation.dsl.Interpreter
-import com.proj.automation.dsl.Node
 import com.proj.automation.dsl.Program
 import com.proj.automation.dsl.RunLimits
 import com.proj.automation.dsl.RunResult
 import com.proj.automation.dsl.RunStatus
-import com.proj.automation.engine.models.ExecutionResult
-import com.proj.automation.parser.Workflow
+import com.proj.automation.plugin.ActionGuard
+import com.proj.automation.plugin.CapabilityGuard
+import com.proj.automation.plugin.Plugin
 import com.proj.automation.service.EventBus
-import com.proj.automation.selector.SelectorEngine
 
 /**
- * Entry point for running workflows. Builds a fresh [ActionContext] per run and delegates
- * to the DSL v2 [Interpreter]; v1 workflows run as programs made only of actions.
+ * Entry point for running skills. Builds a fresh [ActionContext] per run and delegates to the
+ * [Interpreter].
  */
 class ExecutionEngine(
     actionDispatcher: ActionDispatcher,
@@ -29,18 +28,13 @@ class ExecutionEngine(
     private var cancellationToken = CancellationToken()
 
     /**
-     * Run a DSL v2 program with literal arguments (for example, values from a command).
+     * Run a program with literal arguments (for example, values from a command).
      * [guard] restricts what the program may touch (a plugin's approved capabilities).
      */
-    suspend fun run(
-        program: Program,
-        args: Map<String, String> = emptyMap(),
-        guard: com.proj.automation.plugin.ActionGuard? = null
-    ): RunResult {
+    suspend fun run(program: Program, args: Map<String, String> = emptyMap(), guard: ActionGuard? = null): RunResult {
         val token = CancellationToken().also { cancellationToken = it }
         val context = ActionContext(
             automation = com.proj.automation.accessibility.AutomationBridge.get(),
-            selectorEngine = SelectorEngine(),
             eventBus = eventBus,
             cancellationToken = token
         )
@@ -48,40 +42,9 @@ class ExecutionEngine(
     }
 
     /** Runs one of a plugin's skills under that plugin's capabilities. */
-    suspend fun runSkill(plugin: com.proj.automation.plugin.Plugin, skill: String, args: Map<String, String>): RunResult {
+    suspend fun runSkill(plugin: Plugin, skill: String, args: Map<String, String>): RunResult {
         val s = plugin.skills[skill] ?: return RunResult(RunStatus.FAILED, ErrorCode.E_EXPR, "Unknown skill '$skill'")
-        return run(s.program, args, com.proj.automation.plugin.CapabilityGuard(plugin.manifest.capabilities))
-    }
-
-    /**
-     * Execute a v1 workflow. Returns the full execution result with
-     * per-step results, success/failure status, and timing.
-     */
-    suspend fun execute(workflow: Workflow): ExecutionResult {
-        val startTime = System.currentTimeMillis()
-        if (workflow.steps.isEmpty()) {
-            return ExecutionResult(
-                workflowName = workflow.name, completedSuccessfully = true,
-                startTime = startTime, endTime = startTime
-            )
-        }
-        val program = Program(
-            name = workflow.name,
-            description = workflow.description,
-            variables = workflow.variables,
-            body = workflow.steps.map { Node.Action(it) }
-        )
-        val run = run(program)
-        val endTime = System.currentTimeMillis()
-        return ExecutionResult(
-            workflowName = workflow.name,
-            steps = run.steps.toMutableList(),
-            completedSuccessfully = run.status == RunStatus.SUCCEEDED,
-            cancelled = run.status == RunStatus.CANCELLED,
-            totalDurationMs = endTime - startTime,
-            startTime = startTime,
-            endTime = endTime
-        )
+        return run(s.program, args, CapabilityGuard(plugin.manifest.capabilities))
     }
 
     /** Cancel a running workflow */
