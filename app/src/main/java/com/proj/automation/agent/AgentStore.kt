@@ -23,7 +23,7 @@ data class AgentSettings(
     val sheetSize: Int = 100,
     /** Set by the STOP command; only the on-device admin UI clears it */
     val stopped: Boolean = false,
-    /** Apps treated as financial whatever a plugin declares (ADR-009 §9) */
+    /** Apps treated as financial whatever a plugin declares (specs/007-plugin-classification) */
     val financialApps: Set<String> = PluginClassifier.KNOWN_FINANCIAL_APPS
 )
 
@@ -86,7 +86,7 @@ class AgentStore(context: Context) {
         writeAtomically(pluginsIndex, index.toString(2))
     }
 
-    /** Signer of the installed plugin with this id, for signer continuity (ADR-009) */
+    /** Signer of the installed plugin with this id, for signer continuity (specs/006-package-signing) */
     fun installedSigner(pluginId: String): InstalledSigner? {
         val index = readJson(pluginsIndex) ?: return null
         for (keyword in index.keys()) {

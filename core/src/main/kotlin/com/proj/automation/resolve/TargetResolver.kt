@@ -20,7 +20,7 @@ sealed class Resolution {
 }
 
 /**
- * Resolves targets in two stages (docs/vision/laya-resolution.md, stages 2 and 3):
+ * Resolves targets in two stages (specs/001-execution-engine, FR-005):
  *
  * 1. **Exact hints** — `resource_id`, then `content_description`, then `text`. A hint matching
  *    exactly one element wins with confidence 1.0; several matches go on to ranking among them.
@@ -28,7 +28,7 @@ sealed class Resolution {
  *    intent and hints, role fit and screen region. The best one is accepted only if it reaches
  *    `min_confidence` and clearly beats the runner-up; otherwise the result is [Resolution.Ambiguous].
  *
- * This ranker is the baseline that a learned model (Laya, ADR-006) must beat; [rerank] is where
+ * This ranker is the baseline that a learned model (Laya, specs/010-laya-resolution) must beat; [rerank] is where
  * that model would plug in later.
  */
 class TargetResolver(

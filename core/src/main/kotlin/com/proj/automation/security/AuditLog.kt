@@ -16,7 +16,7 @@ data class AuditEntry(
 )
 
 /**
- * Hash-chained audit log (docs/vision/sms-security.md section 9). Changing, removing or
+ * Hash-chained audit log (specs/003-command-channel, FR-009). Changing, removing or
  * reordering a record breaks the chain, which [verify] detects. Records must never contain
  * secrets or one-time codes: callers log commands with the `#index-code` suffix removed.
  *

@@ -14,7 +14,7 @@ sealed class ParsedCommand {
 
 data class AuthCode(val index: Int, val code: String)
 
-/** Verbs the base app handles on every channel (docs/vision/sms-security.md section 3) */
+/** Verbs the base app handles on every channel (specs/003-command-channel/contracts/command-grammar.md) */
 enum class GlobalVerb {
     HELP, STOP, STATUS, MORE, RESEND, CANCEL,
     /** `OK <word>` confirms a pending two-step command */

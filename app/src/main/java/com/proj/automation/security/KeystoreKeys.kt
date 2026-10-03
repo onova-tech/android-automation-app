@@ -9,7 +9,7 @@ import javax.crypto.SecretKey
 
 /**
  * The code-sheet key lives in the Android Keystore and cannot be exported: the phone can compute
- * codes, but the key itself never leaves secure storage (docs/vision/sms-security.md section 4).
+ * codes, but the key itself never leaves secure storage (specs/003-command-channel, FR-005).
  */
 object KeystoreKeys {
 

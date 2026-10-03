@@ -4,7 +4,7 @@ import com.proj.automation.parser.YamlParser
 import java.io.File
 
 /**
- * Builds a `.agp` from a plugin source folder (docs/vision/plugins.md section 4.5):
+ * Builds a `.agp` from a plugin source folder (specs/002-plugin-packages, FR-009):
  * vendors the libraries named in `plugin.yaml` from a libraries folder, writes `PACKAGE.lock`,
  * and produces a reproducible zip (sorted entries, fixed timestamps), so the same sources
  * always give the same bytes and the same package hash. The result is loaded once to make
@@ -14,7 +14,7 @@ object PackageBuilder {
 
     data class Result(val bytes: ByteArray, val plugin: Plugin)
 
-    /** @param signingKey when given, the package is signed with it (ADR-009) */
+    /** @param signingKey when given, the package is signed with it (specs/006-package-signing) */
     fun build(pluginDir: File, librariesDir: File? = null, signingKey: java.security.KeyPair? = null): Result {
         if (!pluginDir.isDirectory) throw PluginPackageException("Not a folder: $pluginDir")
         val entries = sortedMapOf<String, ByteArray>()

@@ -27,7 +27,7 @@ data class Hints(
 
 /**
  * DSL v2 target: what the element is for ([intent]), what it is ([role]), exact [hints], and
- * where it usually is ([region], e.g. `bottom-right`). See docs/vision/laya-resolution.md.
+ * where it usually is ([region], e.g. `bottom-right`). See specs/001-execution-engine and specs/010-laya-resolution.
  */
 data class Target(
     val intent: String? = null,

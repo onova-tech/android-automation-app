@@ -6,8 +6,9 @@ cloud service in the execution path.
 
 **Status:** the engine, plugin system and command channel are implemented and tested on the JVM
 (`./gradlew :core:test :app:testDebugUnitTest`). **Nothing has been validated on a phone yet**;
-that starts when the agent phone is set up. Start with the
-[decision report](docs/vision/decision-report.md) and the [vision documents](docs/vision/README.md).
+that starts when the agent phone is set up. The project is specified with
+[Spec Kit](https://github.com/github/spec-kit): start with the [specs index](specs/README.md) and the
+[constitution](.specify/memory/constitution.md).
 
 ## How it works
 
@@ -24,7 +25,7 @@ that starts when the agent phone is set up. Start with the
 
 | Piece | What it does | Where |
 |-------|--------------|-------|
-| **Plugins** (`.agp`) | A zip of YAML files per app: commands, skills, reusable flows, named targets and screens. No code; installed only on the phone after the owner approves its permissions | [plugins.md](docs/vision/plugins.md), `core/.../plugin`, [`plugins/`](plugins) |
+| **Plugins** (`.agp`) | A zip of YAML files per app: commands, skills, reusable flows, named targets and screens. No code; installed only on the phone after the owner approves its permissions | [spec 002](specs/002-plugin-packages/spec.md), `core/.../plugin`, [`plugins/`](plugins) |
 | **Workflow language** | Actions plus `if`, `first_that_works`, `try`, `call`, `set`, `assert`, `return`, `expect`, templates `${var\|filter}`, global run limits, structured error codes | `core/.../dsl`, `app/.../dsl/Interpreter.kt` |
 | **Targets** | Elements described by intent, role, exact hints and region; exact hints first, then a ranker that refuses to guess (`E_LOW_CONFIDENCE`) | `core/.../resolve` |
 | **Capability guard** | A plugin only sees and operates the apps, and opens the links, the owner approved | `core/.../plugin/CapabilityGuard.kt` |
@@ -74,7 +75,7 @@ $AGP test     plugins/whatsapp --libs plugins/libraries        # replay tests/ a
 $AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries --lang pt
 ```
 
-Signing (ADR-009): developers sign packages like APKs. Unsigned packages still install, with a
+Signing ([spec 006](specs/006-package-signing/spec.md)): developers sign packages like APKs. Unsigned packages still install, with a
 warning that their identity could not be verified; financial plugins need a trusted signer.
 
 ```bash
@@ -116,23 +117,25 @@ screen to add allowed senders, generate a code sheet and install plugins.
 
 | Limitation | Notes |
 |-----------|-------|
-| Not validated on a device | Next step once the agent phone is ready (spikes in the [roadmap](docs/vision/roadmap-risks.md)) |
+| Not validated on a device | Next step once the agent phone is ready (spikes in the [specs index](specs/README.md#validation-spikes)) |
 | The phone must be unlocked with the screen on to automate apps | Waking and unlocking (`wake_screen`, `unlock`) are not implemented yet |
 | Secrets (`type_secret`) not implemented | Needed for bank logins; comes with the agent phone |
 | Screens marked `FLAG_SECURE` cannot be captured | Targets work on the accessibility tree, which is unaffected |
 | Sideload only | Accessibility-based automation is not allowed on the Play Store |
 | The example WhatsApp plugin is not validated | Its hints are guesses until checked with `agp targets` on a real dump |
 
-## Architecture Decision Records
+## Specifications (spec-driven development)
 
-| ADR | Topic | Status |
-|-----|-------|--------|
-| [ADR-001](docs/adr/ADR-001-kotlin-language.md) | Kotlin as development language | Accepted |
-| [ADR-002](docs/adr/ADR-002-snakeyaml-parser.md) | SnakeYAML 2.x as YAML parser | Accepted |
-| [ADR-003](docs/adr/ADR-003-native-accessibility-service.md) | Native AccessibilityService over UI Automator | Accepted |
-| [ADR-004](docs/adr/ADR-004-compose-over-xml.md) | Jetpack Compose over XML layouts | Accepted |
-| [ADR-005](docs/adr/ADR-005-poc-scope-trims.md) | POC scope trims | Superseded by the vision documents |
-| [ADR-006](docs/adr/ADR-006-laya-decision-layer.md) | Laya as local decision layer for element resolution | Accepted |
-| [ADR-007](docs/adr/ADR-007-declarative-yaml-plugins.md) | Declarative plugin packages (zip of YAML files), intelligence in the base app | Accepted |
-| [ADR-008](docs/adr/ADR-008-channel-abstraction.md) | Channel abstraction, SMS as the first contact channel | Accepted |
-| [ADR-009](docs/adr/ADR-009-package-signing.md) | Signing plugin packages | Accepted |
+Specs live in [`specs/`](specs/README.md), one folder per feature (`spec.md`, `research.md` with the
+decisions that used to be ADRs, `plan.md`, `tasks.md`). Project principles are in
+[`.specify/memory/constitution.md`](.specify/memory/constitution.md).
+
+New work starts with the Spec Kit skills in Claude Code:
+
+```
+/speckit-specify <what and why>   →  specs/NNN-name/spec.md
+/speckit-clarify                   (optional) resolve ambiguities
+/speckit-plan                      →  plan.md, research.md, data-model.md, contracts/
+/speckit-tasks                     →  tasks.md
+/speckit-implement
+```
