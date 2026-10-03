@@ -10,7 +10,8 @@ class ExpressionException(message: String) : RuntimeException(message)
  */
 object Templates {
 
-    private val PLACEHOLDER = Regex("""\$\$\{|\$\{([^}]*)}""")
+    // Braces escaped everywhere: Android's ICU regex rejects a bare `}` that the JVM accepts
+    private val PLACEHOLDER = Regex("""\$\$\{|\$\{([^\}]*)\}""")
     private val PATH = Regex("""[A-Za-z_][A-Za-z0-9_]*(\.([A-Za-z_][A-Za-z0-9_]*|\d+))*""")
 
     val FILTERS: Map<String, (String) -> String> = mapOf(
