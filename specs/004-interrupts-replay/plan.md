@@ -27,8 +27,8 @@ runner used by `ReplayTest` and `agp test`, with an injected clock and sleep for
 core/src/main/kotlin/com/proj/automation/
 ├── dsl/Interpreter.kt, dsl/Ast.kt   # InterruptRule, checks before screen actions
 └── replay/ScreenDevice.kt, replay/Replay.kt
-tools/agp/…/Main.kt                  # agp test
-plugins/whatsapp/{interrupts.yaml,tests/,fixtures/}
+core/src/test/resources/whatsapp/{interrupts.yaml,tests/,fixtures/}
+# plugins repository: agp/ (agp test), plugins/whatsapp/
 ```
 
 YAML note: transitions use `after:` because YAML 1.1 reads a bare `on:` key as `true`.

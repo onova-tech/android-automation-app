@@ -28,7 +28,7 @@ trusted keys, and shows the state in the install dialog.
 
 ```text
 core/src/main/kotlin/com/proj/automation/plugin/{PackageSignature.kt, InstallPolicy.kt}
-tools/agp/src/main/kotlin/…/{Main.kt, KeyFiles.kt}
+agp/src/main/kotlin/…/{Main.kt, KeyFiles.kt}             # plugins repository
 app/src/main/java/com/proj/automation/agent/{AgentStore.kt, AgentCoordinator.kt}
 app/src/main/java/com/proj/automation/admin/AdminScreen.kt   # trusted developers, install dialog
 ```

@@ -13,8 +13,8 @@
 
 - [X] T005 [US1] Loader: merge files, check references, reject recursion and duplicates in `PluginLoader.kt`
 - [X] T006 [US1] Library vendoring and namespacing in `PackageBuilder.kt`
-- [X] T007 [US1] `agp validate`, `build`, `inspect`, `targets` in `tools/agp`
-- [X] T008 [US1] Example plugin `plugins/whatsapp` and library `plugins/libraries/android-common`
+- [X] T007 [US1] `agp validate`, `build`, `inspect`, `targets` (now `agp/` in the plugins repository)
+- [X] T008 [US1] Example plugin `whatsapp` and library `android-common` (now in the plugins repository; test copy in `core/src/test/resources/`)
 
 ## Phase 3: User Story 2 — install safely (P1)
 

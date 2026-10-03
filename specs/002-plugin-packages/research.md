@@ -62,5 +62,5 @@ Former ADR-007 and `docs/vision/plugins.md`.
 
 ## Spike 7 result
 
-The WhatsApp example (`plugins/whatsapp`: send, read chat) is expressible with built-in actions
+The WhatsApp example (send, read chat; in the plugins repository) is expressible with built-in actions
 only; replay tests pass. Its hints are guesses until checked with `agp targets` on real dumps.

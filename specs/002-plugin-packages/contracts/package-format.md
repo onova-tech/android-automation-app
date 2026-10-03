@@ -75,13 +75,14 @@ One entry per line, sorted. Its SHA-256 is the package hash.
 ## `agp` commands
 
 ```bash
+# in github.com/onova-tech/android-automation-plugins
 ./gradlew :agp:installDist
-AGP=tools/agp/build/install/agp/bin/agp
-$AGP validate plugins/whatsapp --libs plugins/libraries
-$AGP build    plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp [--key dev.key]
+AGP=agp/build/install/agp/bin/agp
+$AGP validate plugins/whatsapp --libs libraries
+$AGP build    plugins/whatsapp --libs libraries -o build/whatsapp.agp [--key dev.key]
 $AGP inspect  build/whatsapp.agp
-$AGP test     plugins/whatsapp --libs plugins/libraries
-$AGP targets  plugins/whatsapp screen.xml --libs plugins/libraries [--lang pt]
+$AGP test     plugins/whatsapp --libs libraries
+$AGP targets  plugins/whatsapp screen.xml --libs libraries [--lang pt]
 $AGP keygen | sign | verify | fingerprint        # 006
 ```
 

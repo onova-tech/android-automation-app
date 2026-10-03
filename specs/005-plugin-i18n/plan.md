@@ -24,5 +24,5 @@ selected language's map as the reserved `t` scope; the app passes the device loc
 ```text
 core/src/main/kotlin/com/proj/automation/plugin/{Manifest.kt (default_language), PluginLoader.kt (strings)}
 core/src/main/kotlin/com/proj/automation/dsl/{Ast.kt (Program.strings), Interpreter.kt (t scope)}
-plugins/whatsapp/i18n/{pt.yaml,en.yaml}
+core/src/test/resources/whatsapp/i18n/{pt.yaml,en.yaml}   # and the plugins repository
 ```
