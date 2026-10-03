@@ -6,7 +6,6 @@ import android.os.Build
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.proj.automation.service.EventBus
-import com.proj.automation.service.StateManager
 import java.util.concurrent.atomic.AtomicReference
 
 class AutomationService : AccessibilityService(), AutomationBridge {
@@ -27,10 +26,6 @@ class AutomationService : AccessibilityService(), AutomationBridge {
     private val rootNodeRef = AtomicReference<AccessibilityNodeInfo?>(null)
     private var _connected = false
 
-    // State Manager reference (initialized in onServiceConnected)
-    @Suppress("unused")
-    private var stateManager: com.proj.automation.service.StateManager? = null
-
     // Event Bus reference (initialized in onServiceConnected)
     @Suppress("unused")
     private var eventBus: com.proj.automation.service.EventBus? = null
@@ -45,12 +40,8 @@ class AutomationService : AccessibilityService(), AutomationBridge {
         _connected = true
         android.util.Log.i(TAG, "AutomationService connected — ready for automation")
 
-        // Use the process-wide bus so the editor UI receives this service's events
-        stateManager = StateManager()
+        // Use the process-wide bus so the admin UI receives this service's events
         eventBus = EventBus.default
-
-        // Wire EventBus to publish events from this service
-        stateManager?.setEventBus(eventBus)
 
         // Publish connection event
         eventBus?.publish(com.proj.automation.service.EventBus.Event.ServiceConnected)
@@ -74,17 +65,8 @@ class AutomationService : AccessibilityService(), AutomationBridge {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 val packageName = event.packageName?.toString() ?: return
                 val className = event.className?.toString() ?: ""
-                stateManager?.onWindowStateChanged(packageName, className)
                 eventBus?.publish(
                     com.proj.automation.service.EventBus.Event.WindowChanged(packageName, className)
-                )
-            }
-
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
-                val root = getRootNode()
-                stateManager?.onContentChanged(root)
-                eventBus?.publish(
-                    com.proj.automation.service.EventBus.Event.AccessibilityTreeChanged(root)
                 )
             }
 

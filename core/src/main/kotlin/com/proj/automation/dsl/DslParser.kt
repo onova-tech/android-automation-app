@@ -1,5 +1,6 @@
 package com.proj.automation.dsl
 
+import com.proj.automation.parser.ActionType
 import com.proj.automation.parser.Step
 import com.proj.automation.parser.YamlParseException
 import com.proj.automation.parser.YamlParser
@@ -49,6 +50,45 @@ class DslParser(
         )
         checkCalls(program)
         return program
+    }
+
+    // ——— Interrupt rules ———
+
+    /**
+     * Parses `interrupts.yaml`: `rules:` with `name`, `when` (a condition), `do` (steps) and an
+     * optional `max_per_run` (default 2). Rule steps are limited to a few harmless actions.
+     */
+    fun parseInterrupts(doc: Map<String, Any?>): List<InterruptRule> {
+        if (doc.keys != setOf("rules")) fail("interrupts", "must contain only a 'rules' list")
+        val rules = doc["rules"] as? List<*> ?: fail("interrupts.rules", "must be a list")
+        val names = mutableSetOf<String>()
+        return rules.mapIndexed { i, raw ->
+            val path = "interrupts.rules[$i]"
+            val r = raw as? Map<*, *> ?: fail(path, "must be a mapping")
+            val extra = r.keys.map { it.toString() } - setOf("name", "when", "do", "max_per_run")
+            if (extra.isNotEmpty()) fail(path, "unknown keys $extra")
+            val name = r["name"]?.toString() ?: fail(path, "missing 'name'")
+            if (!names.add(name)) fail(path, "duplicate rule name '$name'")
+            val condition = parseCondition(r["when"] as? Map<*, *> ?: fail("$path.when", "must be a condition"), "$path.when")
+            val body = parseSteps(r["do"] ?: fail(path, "missing 'do'"), "$path.do")
+            if (body.isEmpty()) fail("$path.do", "needs at least one step")
+            checkInterruptSteps(body, "$path.do")
+            val max = (r["max_per_run"] as? Number)?.toInt() ?: 2
+            if (max !in 1..10) fail("$path.max_per_run", "must be 1–10")
+            InterruptRule(name, condition, body, max)
+        }
+    }
+
+    private fun checkInterruptSteps(nodes: List<Node>, path: String) {
+        for (n in nodes) when (n) {
+            is Node.Action -> if (n.step.action !in INTERRUPT_ACTIONS) {
+                fail(path, "'${n.step.action.yamlValue}' is not allowed in an interrupt rule; allowed: ${INTERRUPT_ACTIONS.map { it.yamlValue }}")
+            }
+            is Node.Sequence -> checkInterruptSteps(n.nodes, path)
+            is Node.If -> { checkInterruptSteps(n.then, path); checkInterruptSteps(n.otherwise, path) }
+            is Node.FirstThatWorks -> checkInterruptSteps(n.alternatives, path)
+            else -> fail(path, "${n::class.simpleName?.lowercase()} is not allowed in an interrupt rule; use actions, sequence, if or first_that_works")
+        }
     }
 
     // ——— Steps ———
@@ -251,6 +291,7 @@ class DslParser(
 
     companion object {
         val TOP_LEVEL_KEYS = setOf("name", "description", "params", "flows", "steps")
+        private val INTERRUPT_ACTIONS = setOf(ActionType.CLICK, ActionType.BACK, ActionType.WAIT, ActionType.WAIT_FOR, ActionType.LOG)
         private val HINT_KEYS = setOf("text", "content_description", "resource_id")
         val CONDITION_KEYS = setOf("exists", "not_exists", "screen_is", "equals", "contains", "is_set", "not", "all", "any")
     }

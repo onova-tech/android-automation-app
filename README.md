@@ -27,7 +27,7 @@ that starts when the agent phone is set up. Start with the
 | **Plugins** (`.agp`) | A zip of YAML files per app: commands, skills, reusable flows, named targets and screens. No code; installed only on the phone after the owner approves its permissions | [plugins.md](docs/vision/plugins.md), `core/.../plugin`, [`plugins/`](plugins) |
 | **Workflow language** | Actions plus `if`, `first_that_works`, `try`, `call`, `set`, `assert`, `return`, `expect`, templates `${var\|filter}`, global run limits, structured error codes | `core/.../dsl`, `app/.../dsl/Interpreter.kt` |
 | **Targets** | Elements described by intent, role, exact hints and region; exact hints first, then a ranker that refuses to guess (`E_LOW_CONFIDENCE`) | `core/.../resolve` |
-| **Capability guard** | A plugin can only operate the apps and open the links the owner approved | `core/.../plugin/CapabilityGuard.kt` |
+| **Capability guard** | A plugin only sees and operates the apps, and opens the links, the owner approved | `core/.../plugin/CapabilityGuard.kt` |
 | **Command router** | Channel-neutral: sender allowlist, T9-friendly grammar, printed one-time-code sheet, risk × channel-trust policy, two-step confirmation for risk 5, paged replies, hash-chained audit | `core/.../channel`, `core/.../security` |
 | **SMS channel** | Receives commands and sends replies | `app/.../channel/sms` |
 | **Admin screen** | On the phone only: install plugins, allowed senders, code sheet, local console, audit | `app/.../admin/AdminScreen.kt` |
@@ -55,6 +55,7 @@ STOP                                    disable remote commands (no code needed;
 | Reuse | `call: { flow: open_chat, with: { phone: "${phone}" }, into: result }` |
 | Verification | `expect:` on any action, `assert:` as a step |
 | Result | `return: "Sent to ${phone\|mask}"` |
+| Unexpected dialogs | `interrupts.yaml`: rules (`when` + limited `do`) checked before every screen action |
 
 Actions: `launch_app`, `open_url`, `click`, `type`, `read_text`, `read_list`, `scroll`, `scroll_until`,
 `wait`, `wait_for`, `back`, `home`, `log`. Every action accepts `retries`, `retry_delay`, `timeout`
@@ -68,8 +69,13 @@ AGP=tools/agp/build/install/agp/bin/agp
 $AGP validate plugins/whatsapp --libs plugins/libraries
 $AGP build    plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp
 $AGP inspect  build/whatsapp.agp
+$AGP test     plugins/whatsapp --libs plugins/libraries        # replay tests/ against fixtures/
 $AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries
 ```
+
+`agp test` runs each skill test with the same engine as the phone, against recorded screens, in
+virtual time. The WhatsApp example has five (sent, not confirmed, chat does not open, a dialog in
+the way, read chat).
 
 `agp targets` checks a plugin against a real screen: dump it with
 `adb shell uiautomator dump /sdcard/s.xml && adb pull /sdcard/s.xml` (the file stays on your computer).
@@ -91,8 +97,8 @@ screen to add allowed senders, generate a code sheet and install plugins.
 
 | Module | Contents |
 |--------|----------|
-| `:core` (Kotlin/JVM, no Android) | Workflow language (`dsl/`), action steps (`parser/`), targets and ranker (`resolve/`), screen snapshots and `uiautomator` XML (`ui/`), plugin packages (`plugin/`), command channel (`channel/`), code sheet and audit (`security/`), error codes and results (`engine/`) |
-| `:app` (Android) | Interpreter, engine and action handlers, accessibility service, live snapshots, SMS adapter, agent coordinator and storage (`agent/`), Keystore keys, admin screen |
+| `:core` (Kotlin/JVM, no Android) | Engine and actions behind a `DevicePort` (`engine/`), replay device and runner (`replay/`), workflow language and interpreter (`dsl/`), action steps (`parser/`), targets and ranker (`resolve/`), screen snapshots and `uiautomator` XML (`ui/`), plugin packages (`plugin/`), command channel (`channel/`), code sheet and audit (`security/`), error codes and results (`engine/`) |
+| `:app` (Android) | `AndroidDevicePort` over the accessibility service, live snapshots, SMS adapter, agent coordinator and storage (`agent/`), Keystore keys, admin screen |
 | `:agp` (`tools/agp`, Kotlin/JVM) | Command-line tool for plugin authors |
 
 ## Known limitations

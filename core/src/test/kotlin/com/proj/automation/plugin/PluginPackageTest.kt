@@ -104,8 +104,19 @@ class PluginPackageTest {
 
     @Test
     fun `rejects reserved files with a clear message`() {
-        val e = assertThrows<PluginPackageException> { PackageReader.read(zip(mapOf("interrupts.yaml" to "x".toByteArray()))) }
+        val e = assertThrows<PluginPackageException> { PackageReader.read(zip(mapOf("i18n/pt.yaml" to "x".toByteArray()))) }
         assertTrue(e.message!!.contains("reserved"))
+    }
+
+    @Test
+    fun `interrupt rules load into every skill, but never in financial plugins`() {
+        val rule = "rules:\n  - { name: dlg, when: { exists: { text: OK } }, do: [ { click: { target: { hints: { text: OK } } } } ] }"
+        val plugin = PluginLoader.load(pkg(minimal + ("interrupts.yaml" to rule)))
+        assertEquals(listOf("dlg"), plugin.interruptRules)
+        assertEquals("dlg", plugin.skills.getValue("ping").program.interrupts.single().name)
+        assertTrue(plugin.installSummary().contains("Handles unexpected dialogs: dlg"))
+        val financial = manifest.replace("category: utility", "category: financial")
+        fails(minimal + mapOf("plugin.yaml" to financial, "interrupts.yaml" to rule), "not allowed in a financial plugin")
     }
 
     @Test
@@ -209,14 +220,28 @@ class PluginPackageTest {
     }
 
     @Test
-    fun `guard limits actions to approved apps`() {
-        val guard = CapabilityGuard(Capabilities(uiAutomation = setOf("com.a"), readScreen = setOf("com.b")))
-        assertNull(guard.check(Step(ActionType.CLICK), "com.a"))
-        assertNotNull(guard.check(Step(ActionType.CLICK), "com.b"))
-        assertNull(guard.check(Step(ActionType.READ_TEXT), "com.b"))
-        assertNotNull(guard.check(Step(ActionType.READ_TEXT), "com.c"))
-        assertNotNull(guard.check(Step(ActionType.CLICK), null))
-        assertNull(guard.check(Step(ActionType.BACK), "com.c"))
+    fun `guard limits what a plugin can see, launch and open`() {
+        val guard = CapabilityGuard(Capabilities(uiAutomation = setOf("com.a"), readScreen = setOf("com.b"), deeplinks = listOf("https://a.com/*")))
+        assertTrue(guard.canSee("com.a"))
+        assertTrue(guard.canSee("com.b"))
+        assertFalse(guard.canSee("com.c"))
+        assertFalse(guard.canSee(null))
+        assertNull(guard.check(Step(ActionType.LAUNCH_APP, parameters = mapOf("package" to "com.a")), null))
         assertNotNull(guard.check(Step(ActionType.LAUNCH_APP, parameters = mapOf("package" to "com.c")), null))
+        assertNull(guard.check(Step(ActionType.OPEN_URL, parameters = mapOf("url" to "https://a.com/x")), null))
+        assertNotNull(guard.check(Step(ActionType.OPEN_URL, parameters = mapOf("url" to "https://b.com/x")), null))
+        assertNull(guard.check(Step(ActionType.CLICK), "com.c")) // allowed to try, but it sees an empty screen
+    }
+
+    @Test
+    fun `a plugin is blind to apps it was not approved for`() {
+        val device = com.proj.automation.replay.ScreenDevice(
+            com.proj.automation.ui.UiNode(packageName = "com.other", text = "secret balance")
+        )
+        val guard = CapabilityGuard(Capabilities(uiAutomation = setOf("com.a")))
+        val ctx = com.proj.automation.engine.ActionContext(
+            device, com.proj.automation.service.EventBus(), com.proj.automation.engine.CancellationToken(), canSee = guard::canSee
+        )
+        assertNull(ctx.snapshot())
     }
 }

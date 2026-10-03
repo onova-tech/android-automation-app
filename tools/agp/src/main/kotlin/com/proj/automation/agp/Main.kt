@@ -4,6 +4,7 @@ import com.proj.automation.plugin.PackageBuilder
 import com.proj.automation.plugin.PluginLoader
 import com.proj.automation.plugin.PluginPackageException
 import com.proj.automation.plugin.Plugin
+import com.proj.automation.replay.Replay
 import com.proj.automation.resolve.Resolution
 import com.proj.automation.resolve.TargetResolver
 import com.proj.automation.ui.UiXml
@@ -16,6 +17,7 @@ Usage:
   agp validate <plugin-dir> [--libs <dir>]          check a plugin folder and print its install summary
   agp build <plugin-dir> [--libs <dir>] -o <file>   build a reproducible .agp package
   agp inspect <file.agp>                            verify a package and print its install summary
+  agp test <plugin-dir> [--libs <dir>]              run the replay tests in tests/ against fixtures/
   agp targets <plugin-dir|file.agp> <dump.xml> [--libs <dir>]
                                                     resolve every named target against a
                                                     `uiautomator dump` of a real screen
@@ -66,10 +68,40 @@ internal fun run(args: List<String>): Int {
             val plugin = if (source.isDirectory) PackageBuilder.build(source, libs).plugin else PluginLoader.load(source.readBytes())
             return checkTargets(plugin, dump)
         }
+        "test" -> {
+            val dir = dir(positional, 0)
+            val plugin = PackageBuilder.build(dir, libs).plugin
+            return runTests(plugin, dir)
+        }
         "help", "--help", "-h" -> println(USAGE)
         else -> throw UsageException("unknown command '$command'")
     }
     return 0
+}
+
+/** Runs every replay test of a plugin folder; exit code 1 if any fails */
+private fun runTests(plugin: Plugin, dir: File): Int {
+    val tests = dir.resolve("tests").listFiles { f -> f.extension == "yaml" }?.sortedBy { it.name }.orEmpty()
+    if (tests.isEmpty()) {
+        println("No tests in ${dir.resolve("tests")}")
+        return 1
+    }
+    var failed = 0
+    for (file in tests) {
+        val outcome = Replay.run(plugin, Replay.parseCase(file.readText(), file.name)) { name ->
+            dir.resolve("fixtures").resolve(name).takeIf { it.isFile }?.readText()
+        }
+        if (outcome.passed) {
+            println("✓ ${file.name}: ${outcome.case.name}")
+        } else {
+            failed++
+            println("✗ ${file.name}: ${outcome.case.name}")
+            outcome.failures.forEach { println("    $it") }
+            println("    interactions: ${outcome.interactions}")
+        }
+    }
+    println("\n${tests.size - failed} of ${tests.size} tests passed")
+    return if (failed == 0) 0 else 1
 }
 
 /** Prints how each named target resolves on a real screen; exit code 1 if any fails */

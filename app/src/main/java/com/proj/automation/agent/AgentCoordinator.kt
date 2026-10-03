@@ -1,7 +1,7 @@
 package com.proj.automation.agent
 
 import android.content.Context
-import com.proj.automation.accessibility.AutomationBridge
+import com.proj.automation.accessibility.AndroidDevicePort
 import com.proj.automation.channel.ChannelCapabilities
 import com.proj.automation.channel.ChannelConfig
 import com.proj.automation.channel.CommandRouter
@@ -10,9 +10,7 @@ import com.proj.automation.channel.Outcome
 import com.proj.automation.channel.RouterState
 import com.proj.automation.channel.TrustProfile
 import com.proj.automation.dsl.RunResult
-import com.proj.automation.dsl.RunStatus
 import com.proj.automation.engine.ActionDispatcher
-import com.proj.automation.engine.ErrorCode
 import com.proj.automation.engine.ErrorHandler
 import com.proj.automation.engine.ExecutionEngine
 import com.proj.automation.engine.buildHandlerRegistry
@@ -42,7 +40,7 @@ object AgentCoordinator {
 
     private val mutex = Mutex()
     private lateinit var store: AgentStore
-    private val engine = ExecutionEngine(ActionDispatcher(buildHandlerRegistry()), ErrorHandler(), EventBus.default)
+    private lateinit var engine: ExecutionEngine
 
     @Volatile var plugins: List<InstalledPlugin> = emptyList(); private set
     @Volatile var loadProblems: List<String> = emptyList(); private set
@@ -53,7 +51,12 @@ object AgentCoordinator {
     private lateinit var state: RouterState
 
     fun init(context: Context) {
-        store = AgentStore(context.applicationContext)
+        val app = context.applicationContext
+        store = AgentStore(app)
+        engine = ExecutionEngine(
+            ActionDispatcher(buildHandlerRegistry()), ErrorHandler(), EventBus.default,
+            device = { AndroidDevicePort.current(app) }
+        )
         reload()
     }
 
@@ -78,12 +81,9 @@ object AgentCoordinator {
         replies
     }
 
+    /** Fails with E_DEVICE when the accessibility service is off (no device port) */
     private suspend fun run(plugin: Plugin, skill: String, args: Map<String, String>): RunResult =
-        if (AutomationBridge.instance == null) {
-            RunResult(RunStatus.FAILED, ErrorCode.E_DEVICE, "Accessibility service is not running")
-        } else {
-            engine.runSkill(plugin, skill, args)
-        }
+        engine.runSkill(plugin, skill, args)
 
     fun cancelRunning() = engine.cancel()
 

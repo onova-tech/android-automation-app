@@ -127,12 +127,13 @@ Candidate libraries:
 | Piece | Status |
 |-------|--------|
 | Safe unpacker, `PACKAGE.lock`, manifest, flows, skills, commands, named targets, screens (`screen_is`), vendored libraries, risk floor, install summary (`core/.../plugin/`) | Done |
-| Runtime capability guard (apps a plugin may operate or read, deeplink allowlist) | Done; denials end the run with `E_CAPABILITY` and cannot be caught |
+| Runtime capability guard | Done. A plugin is **blind** to apps outside `ui_automation`/`read_screen`: actions and conditions see an empty screen there. Launching an app or opening a link outside the lists ends the run with `E_CAPABILITY`, which cannot be caught |
 | `agp` CLI: `validate`, `build`, `inspect`, `targets` (`tools/agp`) | Done |
-| `interrupts.yaml`, `i18n/` | **Reserved**: rejected with a clear message until implemented |
+| `interrupts.yaml` | Done (see [action-catalog.md](action-catalog.md) section 2.2); not allowed in financial plugins |
+| `i18n/` | **Reserved**: rejected with a clear message until implemented |
 | Library `overrides:` | Not implemented; names that clash with a library are rejected |
 | Secrets (`type_secret`), admin-mode install UI, on-device storage | Not yet (needs the agent phone) |
-| `agp test` (replay a skill against fixtures) | Not yet; `agp targets` covers target checks against real dumps |
+| `agp test` (replay skills against fixtures with the real engine, in virtual time) | Done; test format in `core/.../replay/Replay.kt` |
 
 `PACKAGE.lock` format: first line `agp-lock 1`, then `file <sha256> <path>` and `library <id> <version>` lines, sorted. Its SHA-256 is the package hash shown at install.
 
@@ -145,7 +146,7 @@ Plugins are written as **folders** in a source repository. A command-line tool t
 | Command | What it does |
 |---------|--------------|
 | `agp validate <folder>` | Schema checks, reference checks (every `call`, target and screen exists), recursion and depth checks, capability/secret/risk report |
-| `agp test <folder>` | Runs the replay tests against the fixtures, offline |
+| `agp test <folder>` | Runs every test in `tests/` with the real engine against the screens in `fixtures/`, in virtual time; each test gives the skill, arguments, screen transitions (`after: click, label: ..., screen: ...`) and the expected status, error, return value and interaction log |
 | `agp build <folder>` | Vendors the libraries, writes `PACKAGE.lock`, and produces a **reproducible** zip (sorted entries, fixed timestamps), so the same source always gives the same hash |
 | `agp inspect <file.agp>` | Verifies a package and prints its install summary and hash |
 | `agp targets <folder\|file.agp> <dump.xml>` | Resolves every named target against a real `uiautomator dump` and shows how each was found (exact hint, ranking score) or why not |

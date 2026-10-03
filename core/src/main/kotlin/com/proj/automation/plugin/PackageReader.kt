@@ -81,7 +81,7 @@ object PackageReader {
 
     private val YAML_DIRS = setOf("skills", "flows", "targets", "screens", "tests")
     private val LIB_DIRS = setOf("flows", "targets", "screens")
-    private val RESERVED = setOf("interrupts.yaml", "i18n")
+    private val RESERVED = setOf("i18n")
 
     /** Allowed layout (plugins.md section 4.2); everything else is rejected */
     internal fun checkAllowed(path: String) {
@@ -90,7 +90,7 @@ object PackageReader {
         val ok = when {
             parts[0] in RESERVED ->
                 throw PluginPackageException("'$path': ${parts[0]} is reserved for a later version and not supported yet")
-            parts.size == 1 -> path in setOf("plugin.yaml", "commands.yaml", "README.md", PackageLock.FILE)
+            parts.size == 1 -> path in setOf("plugin.yaml", "commands.yaml", "interrupts.yaml", "README.md", PackageLock.FILE)
             parts.size == 2 && parts[0] in YAML_DIRS -> ext == "yaml"
             parts.size == 2 && parts[0] == "fixtures" -> ext == "json" || ext == "xml"
             parts[0] == "lib" && parts.size == 3 -> parts[2] == "library.yaml" || parts[2] == "README.md"

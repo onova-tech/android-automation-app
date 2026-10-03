@@ -26,7 +26,9 @@ data class Plugin(
     val targetDefs: Map<String, Target>,
     val screens: Set<String>,
     val fixtures: List<String>,
-    val readme: String?
+    val readme: String?,
+    /** Names of the interrupt rules applied to every skill */
+    val interruptRules: List<String> = emptyList()
 ) {
     /** Text shown in admin mode before the owner approves the install (plugins.md section 10) */
     fun installSummary(): String = buildString {
@@ -46,6 +48,7 @@ data class Plugin(
             val args = c.args?.let { " $it" } ?: ""
             appendLine("  - ${m.id.uppercase()} ${c.verb}$args (${c.risk})")
         }
+        if (interruptRules.isNotEmpty()) appendLine("Handles unexpected dialogs: ${interruptRules.joinToString()}")
         if (m.libraries.isNotEmpty()) appendLine("Bundled libraries: ${m.libraries.entries.joinToString { "${it.key} ${it.value}" }}")
         append("Package hash: $packageHash")
     }
@@ -108,6 +111,12 @@ object PluginLoader {
         val allScreens = screens + libScreens
         duplicates(targets.keys, libTargets.keys)?.let { throw PluginPackageException("Target name clashes with a library: $it") }
         val flowsRaw = flowFiles(files, "flows/", ::doc)
+        val interrupts = files.text("interrupts.yaml")?.let {
+            if (manifest.category == Category.FINANCIAL) {
+                throw PluginPackageException("interrupts.yaml is not allowed in a financial plugin")
+            }
+            parse("interrupts.yaml") { DslParser(yaml, allTargets, allScreens).parseInterrupts(doc("interrupts.yaml")) }
+        }.orEmpty()
 
         val skills = files.paths("skills/").associate { path ->
             val d = doc(path)
@@ -121,7 +130,7 @@ object PluginLoader {
                 )
             }
             checkStatic(program, manifest, path)
-            name to Skill(name, d["description"]?.toString(), risk, program)
+            name to Skill(name, d["description"]?.toString(), risk, program.copy(interrupts = interrupts))
         }
         if (skills.size != files.paths("skills/").size) throw PluginPackageException("Two skill files declare the same skill name")
         if (skills.isEmpty()) throw PluginPackageException("A plugin needs at least one skill in skills/")
@@ -159,9 +168,12 @@ object PluginLoader {
             targetDefs = allTargets.mapValues { Target.parse(it.value) },
             screens = allScreens.keys,
             fixtures = files.paths("fixtures/"),
-            readme = files.text("README.md")
+            readme = files.text("README.md"),
+            interruptRules = interrupts.map { it.name }
         )
     }
+
+    private val UI_ACTIONS = setOf(ActionType.CLICK, ActionType.TYPE, ActionType.SCROLL, ActionType.SCROLL_UNTIL)
 
     /**
      * Minimum risk level of every command (docs/vision/plugins.md section 9). A plugin can
@@ -234,7 +246,7 @@ object PluginLoader {
                     if (step.action == ActionType.OPEN_URL && m.capabilities.deeplinks.isEmpty()) {
                         throw PluginPackageException("$where: open_url needs capabilities.deeplinks")
                     }
-                    if (step.action in CapabilityGuard.UI_ACTIONS && operable.isEmpty()) {
+                    if (step.action in UI_ACTIONS && operable.isEmpty()) {
                         throw PluginPackageException("$where: ${step.action.yamlValue} needs capabilities.ui_automation")
                     }
                 }

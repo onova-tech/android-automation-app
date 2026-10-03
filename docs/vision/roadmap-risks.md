@@ -52,6 +52,8 @@ The spikes answer the questions that could invalidate parts of the plan. **They 
 
 **Progress (branch `feature/command-channel`, 2026-10-01):** done on the JVM — channel-neutral command router (grammar, argument templates, sender allowlist, STOP, HELP/STATUS/MORE/RESEND/CANCEL/OK), printed code sheet with burn-on-use and lockouts, risk × channel-trust policy with two-step confirmation, plain-text paged replies, hash-chained audit, phone-number matching. Written but **not run on a device** — SMS receiver/sender, Keystore-backed code-sheet key, local storage, agent coordinator (one command at a time), admin screen (install plugins after the device credential, allowed senders, code sheet shown once, local console, audit view). The POC's plain-YAML workflows, editor and v1 selectors were removed (owner decision: only `.agp` plugins). Missing: `wake_screen`/`unlock`, `type_secret`, notification actions.
 
+**Progress (branch `feature/interrupts-replay`, 2026-10-01):** the engine runs in `:core` behind a `DevicePort` (the app supplies the Android one); `agp test` replays skills against recorded screens with the real engine in virtual time; interrupt rules (`interrupts.yaml`). The replays found and fixed a capability leak (conditions could read unapproved apps; plugins are now blind to them) and a resolver bug (exact hints ignored the role).
+
 ### Phase 4 — Semantic resolution (Laya)
 
 - Full `ResolverPipeline`: cache, ranker, Laya, verification.
