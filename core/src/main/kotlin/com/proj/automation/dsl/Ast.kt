@@ -67,5 +67,17 @@ data class Program(
     val params: Map<String, ParamSpec> = emptyMap(),
     val flows: Map<String, Flow> = emptyMap(),
     val body: List<Node> = emptyList(),
-    val interrupts: List<InterruptRule> = emptyList()
-)
+    val interrupts: List<InterruptRule> = emptyList(),
+    /** Plugin texts by language (`i18n/<lang>.yaml`), read in templates as `${t.key}` */
+    val strings: Map<String, Map<String, String>> = emptyMap(),
+    /** Language used when the device's language has no texts */
+    val defaultLanguage: String? = null
+) {
+    /** The texts for [language] (e.g. "pt" or "pt-BR"), falling back to the default language */
+    fun stringsFor(language: String?): Map<String, String> {
+        val lang = language?.lowercase()
+        return lang?.let { strings[it] ?: strings[it.substringBefore('-')] }
+            ?: defaultLanguage?.let { strings[it] }
+            ?: emptyMap()
+    }
+}

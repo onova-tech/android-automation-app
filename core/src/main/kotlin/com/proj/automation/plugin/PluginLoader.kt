@@ -28,8 +28,12 @@ data class Plugin(
     val fixtures: List<String>,
     val readme: String?,
     /** Names of the interrupt rules applied to every skill */
-    val interruptRules: List<String> = emptyList()
+    val interruptRules: List<String> = emptyList(),
+    /** Texts by language from `i18n/` */
+    val strings: Map<String, Map<String, String>> = emptyMap()
 ) {
+    val languages: List<String> get() = strings.keys.sorted()
+
     /** Text shown in admin mode before the owner approves the install (plugins.md section 10) */
     fun installSummary(): String = buildString {
         val m = manifest
@@ -48,6 +52,7 @@ data class Plugin(
             val args = c.args?.let { " $it" } ?: ""
             appendLine("  - ${m.id.uppercase()} ${c.verb}$args (${c.risk})")
         }
+        if (languages.isNotEmpty()) appendLine("Languages: ${languages.joinToString()} (default ${m.defaultLanguage})")
         if (interruptRules.isNotEmpty()) appendLine("Handles unexpected dialogs: ${interruptRules.joinToString()}")
         if (m.libraries.isNotEmpty()) appendLine("Bundled libraries: ${m.libraries.entries.joinToString { "${it.key} ${it.value}" }}")
         append("Package hash: $packageHash")
@@ -111,6 +116,7 @@ object PluginLoader {
         val allScreens = screens + libScreens
         duplicates(targets.keys, libTargets.keys)?.let { throw PluginPackageException("Target name clashes with a library: $it") }
         val flowsRaw = flowFiles(files, "flows/", ::doc)
+        val strings = loadStrings(files, manifest, ::doc)
         val interrupts = files.text("interrupts.yaml")?.let {
             if (manifest.category == Category.FINANCIAL) {
                 throw PluginPackageException("interrupts.yaml is not allowed in a financial plugin")
@@ -130,7 +136,10 @@ object PluginLoader {
                 )
             }
             checkStatic(program, manifest, path)
-            name to Skill(name, d["description"]?.toString(), risk, program.copy(interrupts = interrupts))
+            name to Skill(
+                name, d["description"]?.toString(), risk,
+                program.copy(interrupts = interrupts, strings = strings, defaultLanguage = manifest.defaultLanguage)
+            )
         }
         if (skills.size != files.paths("skills/").size) throw PluginPackageException("Two skill files declare the same skill name")
         if (skills.isEmpty()) throw PluginPackageException("A plugin needs at least one skill in skills/")
@@ -169,7 +178,8 @@ object PluginLoader {
             screens = allScreens.keys,
             fixtures = files.paths("fixtures/"),
             readme = files.text("README.md"),
-            interruptRules = interrupts.map { it.name }
+            interruptRules = interrupts.map { it.name },
+            strings = strings
         )
     }
 
@@ -184,6 +194,42 @@ object PluginLoader {
         m.secrets.isNotEmpty() || m.capabilities.deviceCredentialPrompt -> 4
         m.category == Category.MESSAGING -> 2
         else -> 1
+    }
+
+    private val TEXT_REF = Regex("""\$\{\s*t\.([A-Za-z0-9_]+)""")
+
+    /**
+     * Reads `i18n/<lang>.yaml` (flat `key: text` maps). Every language must define the same keys,
+     * a default language must be declared, and every `${t.key}` used anywhere must exist.
+     */
+    private fun loadStrings(files: PackageFiles, m: Manifest, doc: (String) -> Map<String, Any?>): Map<String, Map<String, String>> {
+        val strings = files.paths("i18n/").associate { path ->
+            val lang = path.removePrefix("i18n/").removeSuffix(".yaml").lowercase()
+            lang to doc(path).entries.associate { (k, v) ->
+                if (!Regex("[A-Za-z0-9_]+").matches(k)) throw PluginPackageException("$path: invalid key '$k'")
+                k to (v as? String ?: throw PluginPackageException("$path: '$k' must be a text"))
+            }
+        }
+        val used = files.entries.keys
+            .filter { it.endsWith(".yaml") && !it.startsWith("i18n/") && !it.startsWith("tests/") }
+            .flatMap { path -> TEXT_REF.findAll(files.text(path).orEmpty()).map { it.groupValues[1] to path } }
+        if (strings.isEmpty()) {
+            used.firstOrNull()?.let { (key, path) -> throw PluginPackageException("$path uses \${t.$key} but the plugin has no i18n/ texts") }
+            return emptyMap()
+        }
+        val default = m.defaultLanguage ?: throw PluginPackageException("plugin.yaml: 'plugin.default_language' is required with i18n/")
+        val defaultKeys = strings[default]?.keys ?: throw PluginPackageException("plugin.yaml: default language '$default' has no i18n/$default.yaml")
+        strings.forEach { (lang, texts) ->
+            val missing = defaultKeys - texts.keys
+            val extra = texts.keys - defaultKeys
+            if (missing.isNotEmpty() || extra.isNotEmpty()) {
+                throw PluginPackageException("i18n/$lang.yaml differs from i18n/$default.yaml: missing $missing, extra $extra")
+            }
+        }
+        used.firstOrNull { it.first !in defaultKeys }?.let { (key, path) ->
+            throw PluginPackageException("$path uses \${t.$key}, which is not defined in i18n/")
+        }
+        return strings
     }
 
     // ——— Helpers ———

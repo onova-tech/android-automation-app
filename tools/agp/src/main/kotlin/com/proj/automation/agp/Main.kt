@@ -18,7 +18,7 @@ Usage:
   agp build <plugin-dir> [--libs <dir>] -o <file>   build a reproducible .agp package
   agp inspect <file.agp>                            verify a package and print its install summary
   agp test <plugin-dir> [--libs <dir>]              run the replay tests in tests/ against fixtures/
-  agp targets <plugin-dir|file.agp> <dump.xml> [--libs <dir>]
+  agp targets <plugin-dir|file.agp> <dump.xml> [--libs <dir>] [--lang <code>]
                                                     resolve every named target against a
                                                     `uiautomator dump` of a real screen
 """
@@ -42,7 +42,7 @@ internal fun run(args: List<String>): Int {
     val command = args.firstOrNull() ?: throw UsageException("missing command")
     val rest = args.drop(1)
     val libs = option(rest, "--libs")?.let(::File)
-    val positional = positional(rest, setOf("--libs", "-o"))
+    val positional = positional(rest, setOf("--libs", "-o", "--lang"))
 
     when (command) {
         "validate" -> {
@@ -66,7 +66,7 @@ internal fun run(args: List<String>): Int {
             val source = positional.getOrNull(0)?.let(::File) ?: throw UsageException("targets needs a plugin folder or .agp")
             val dump = positional.getOrNull(1)?.let(::File) ?: throw UsageException("targets needs a dump.xml")
             val plugin = if (source.isDirectory) PackageBuilder.build(source, libs).plugin else PluginLoader.load(source.readBytes())
-            return checkTargets(plugin, dump)
+            return checkTargets(plugin, dump, option(rest, "--lang"))
         }
         "test" -> {
             val dir = dir(positional, 0)
@@ -105,11 +105,16 @@ private fun runTests(plugin: Plugin, dir: File): Int {
 }
 
 /** Prints how each named target resolves on a real screen; exit code 1 if any fails */
-private fun checkTargets(plugin: Plugin, dump: File): Int {
+private fun checkTargets(plugin: Plugin, dump: File, language: String?): Int {
     val screen = UiXml.parse(dump.readText())
     val resolver = TargetResolver()
+    // Plugin texts (`${t.key}`) are filled in for the chosen language; other variables cannot be
+    val texts = plugin.skills.values.firstOrNull()?.program?.stringsFor(language).orEmpty()
+    val textRef = Regex("""\$\{\s*t\.([A-Za-z0-9_]+)\s*}""")
+    if (plugin.languages.isNotEmpty()) println("Language: ${language ?: plugin.manifest.defaultLanguage} (of ${plugin.languages.joinToString()})\n")
     var failures = 0
-    for ((name, target) in plugin.targetDefs.toSortedMap()) {
+    for ((name, raw) in plugin.targetDefs.toSortedMap()) {
+        val target = raw.map { s -> textRef.replace(s) { m -> texts[m.groupValues[1]] ?: m.value } }
         if (target.strings().any { it.contains("\${") }) {
             println("~ $name: skipped (uses variables)")
             continue

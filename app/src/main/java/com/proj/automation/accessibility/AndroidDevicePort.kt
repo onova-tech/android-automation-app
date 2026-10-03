@@ -45,6 +45,8 @@ class AndroidDevicePort(private val bridge: AutomationBridge, private val contex
         return true
     }
 
+    override fun language(): String? = context.resources.configuration.locales.get(0)?.toLanguageTag()
+
     private fun live(node: UiNode): AccessibilityNodeInfo? = node.ref as? AccessibilityNodeInfo
 
     companion object {

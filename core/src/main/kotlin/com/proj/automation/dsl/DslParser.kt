@@ -131,11 +131,11 @@ class DslParser(
                 val flow = m["flow"]?.toString() ?: fail("$path.call", "missing 'flow'")
                 val args = (m["with"] as? Map<*, *>).orEmpty()
                     .entries.associate { it.key.toString() to template(it.value, "$path.call.with.${it.key}") }
-                Node.Call(flow, args, m["into"]?.toString())
+                Node.Call(flow, args, m["into"]?.toString()?.let { variable(it, "$path.call.into") })
             }
             "set" -> {
                 val m = value as? Map<*, *> ?: fail("$path.set", "must be a mapping of variable: value")
-                Node.SetVars(m.entries.associate { it.key.toString() to template(it.value, "$path.set.${it.key}") })
+                Node.SetVars(m.entries.associate { variable(it.key.toString(), "$path.set") to template(it.value, "$path.set.${it.key}") })
             }
             "assert" -> {
                 val m = value as? Map<*, *> ?: fail("$path.assert", "must be a mapping")
@@ -163,6 +163,7 @@ class DslParser(
             fail(path, e.message ?: "invalid action")
         }
         step.parameters.forEach { (k, v) -> (v as? String)?.let { template(it, "$path.$key.$k") } }
+        (step.parameters["into"] as? String)?.let { variable(it, "$path.$key.into") }
         step.target?.let { it.strings().forEach { s -> template(s, "$path.$key.target") } }
         return Node.Action(step, expect)
     }
@@ -239,10 +240,16 @@ class DslParser(
 
     // ——— Params, templates, flow calls ———
 
+    /** `t` holds the plugin's texts and cannot be assigned */
+    private fun variable(name: String, path: String): String {
+        if (name == RESERVED_TEXTS) fail(path, "'$RESERVED_TEXTS' is reserved for the plugin's texts")
+        return name
+    }
+
     private fun parseParams(raw: Any?, path: String): Map<String, ParamSpec> =
         (raw as? Map<*, *>).orEmpty().entries.associate { (k, v) ->
             val spec = v as? Map<*, *>
-            k.toString() to ParamSpec(
+            variable(k.toString(), path) to ParamSpec(
                 required = (spec?.get("required") as? Boolean) ?: (spec?.get("default") == null),
                 default = spec?.get("default")?.let { template(it, "$path.$k.default") }
             )
@@ -290,6 +297,7 @@ class DslParser(
         throw YamlParseException("$path: $message", line = 0, column = 0)
 
     companion object {
+        const val RESERVED_TEXTS = "t"
         val TOP_LEVEL_KEYS = setOf("name", "description", "params", "flows", "steps")
         private val INTERRUPT_ACTIONS = setOf(ActionType.CLICK, ActionType.BACK, ActionType.WAIT, ActionType.WAIT_FOR, ActionType.LOG)
         private val HINT_KEYS = setOf("text", "content_description", "resource_id")

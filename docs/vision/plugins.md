@@ -130,7 +130,7 @@ Candidate libraries:
 | Runtime capability guard | Done. A plugin is **blind** to apps outside `ui_automation`/`read_screen`: actions and conditions see an empty screen there. Launching an app or opening a link outside the lists ends the run with `E_CAPABILITY`, which cannot be caught |
 | `agp` CLI: `validate`, `build`, `inspect`, `targets` (`tools/agp`) | Done |
 | `interrupts.yaml` | Done (see [action-catalog.md](action-catalog.md) section 2.2); not allowed in financial plugins |
-| `i18n/` | **Reserved**: rejected with a clear message until implemented |
+| `i18n/` | Done. `i18n/<lang>.yaml` (`pt`, `en`, `pt-br`…) holds `key: text` pairs; steps, targets and rules use `${t.key}`. The device's language picks the texts (`pt-BR` → `pt-br`, then `pt`), else `plugin.default_language`. At install every language must have the same keys and every `${t.key}` must exist; `t` cannot be assigned. Replay tests can set `language:`; `agp targets --lang` fills the texts |
 | Library `overrides:` | Not implemented; names that clash with a library are rejected |
 | Secrets (`type_secret`), admin-mode install UI, on-device storage | Not yet (needs the agent phone) |
 | `agp test` (replay skills against fixtures with the real engine, in virtual time) | Done; test format in `core/.../replay/Replay.kt` |
@@ -149,7 +149,7 @@ Plugins are written as **folders** in a source repository. A command-line tool t
 | `agp test <folder>` | Runs every test in `tests/` with the real engine against the screens in `fixtures/`, in virtual time; each test gives the skill, arguments, screen transitions (`after: click, label: ..., screen: ...`) and the expected status, error, return value and interaction log |
 | `agp build <folder>` | Vendors the libraries, writes `PACKAGE.lock`, and produces a **reproducible** zip (sorted entries, fixed timestamps), so the same source always gives the same hash |
 | `agp inspect <file.agp>` | Verifies a package and prints its install summary and hash |
-| `agp targets <folder\|file.agp> <dump.xml>` | Resolves every named target against a real `uiautomator dump` and shows how each was found (exact hint, ranking score) or why not |
+| `agp targets <folder\|file.agp> <dump.xml> [--lang <code>]` | Resolves every named target against a real `uiautomator dump` and shows how each was found (exact hint, ranking score) or why not |
 
 The phone only accepts built packages.
 

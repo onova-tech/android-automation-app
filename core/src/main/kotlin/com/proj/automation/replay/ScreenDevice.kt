@@ -20,8 +20,12 @@ open class ScreenDevice(
     var screen: UiNode?,
     private val transitions: List<Transition> = emptyList(),
     /** Packages `launch_app` can open; null means any */
-    private val installed: Set<String>? = null
+    private val installed: Set<String>? = null,
+    /** Device language reported to the engine (selects plugin texts) */
+    private val language: String? = null
 ) : DevicePort {
+
+    override fun language(): String? = language
 
     /** Every interaction in order, e.g. `click:Enviar`, `open_url:https://wa.me/...`, `type:Mensagem` */
     val interactions = mutableListOf<String>()

@@ -81,7 +81,8 @@ class PluginPackageTest {
         val plugin = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries")).plugin
         val click = plugin.skills.getValue("send").program.body.filterIsInstance<Node.Action>()
             .first { it.step.action == ActionType.CLICK }
-        assertEquals("botão que envia a mensagem", click.step.target!!.intent)
+        // texts stay as templates until run time, when the device language picks them
+        assertEquals("\${t.send_intent}", click.step.target!!.intent)
     }
 
     // ——— Reading the zip safely ———
@@ -103,9 +104,10 @@ class PluginPackageTest {
     }
 
     @Test
-    fun `rejects reserved files with a clear message`() {
-        val e = assertThrows<PluginPackageException> { PackageReader.read(zip(mapOf("i18n/pt.yaml" to "x".toByteArray()))) }
-        assertTrue(e.message!!.contains("reserved"))
+    fun `language files must be named by language code`() {
+        assertNotNull(PackageReader.read(zip(mapOf("i18n/pt-br.yaml" to "x".toByteArray()))))
+        val e = assertThrows<PluginPackageException> { PackageReader.read(zip(mapOf("i18n/portuguese.yaml" to "x".toByteArray()))) }
+        assertTrue(e.message!!.contains("not allowed"))
     }
 
     @Test
