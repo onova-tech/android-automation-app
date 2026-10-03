@@ -6,7 +6,7 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Printed one-time-code sheet (docs/vision/sms-security.md section 4). Code `i` is derived from
+ * Printed one-time-code sheet (specs/003-command-channel, FR-005). Code `i` is derived from
  * a secret key that never leaves the agent phone: `truncate(HMAC-SHA256(key, sheetId ‖ i))`,
  * 8 digits. The phone stores only the key and the used indices, never the codes.
  *
@@ -71,7 +71,7 @@ sealed class AuthResult {
 /**
  * Verifies `#<index>-<code>` against the sheet. A valid index is burned before the command runs,
  * so it can never run twice. Failures lead to escalating lockouts and, after a total budget,
- * to a hard lock (docs/vision/sms-security.md section 4.1).
+ * to a hard lock (specs/003-command-channel, FR-006).
  *
  * The caller must count failures only for allow-listed senders, so strangers cannot lock the agent.
  */

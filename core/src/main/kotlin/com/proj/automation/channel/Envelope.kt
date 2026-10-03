@@ -1,7 +1,7 @@
 package com.proj.automation.channel
 
 /**
- * How much a channel can be trusted (docs/vision/channels.md section 4). Set by the adapter,
+ * How much a channel can be trusted (specs/003-command-channel/contracts/command-grammar.md). Set by the adapter,
  * never by the message.
  */
 enum class TrustProfile(val maxRisk: Int) {

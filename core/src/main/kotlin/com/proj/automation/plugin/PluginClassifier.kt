@@ -1,7 +1,7 @@
 package com.proj.automation.plugin
 
 /**
- * How the base app classifies a plugin, whatever the plugin says about itself (ADR-009 §9).
+ * How the base app classifies a plugin, whatever the plugin says about itself (specs/007-plugin-classification).
  * A plugin can make itself *more* sensitive by declaring `category: financial`, never less.
  */
 data class Classification(

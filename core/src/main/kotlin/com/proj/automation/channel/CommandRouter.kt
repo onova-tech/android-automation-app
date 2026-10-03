@@ -48,7 +48,7 @@ class RouterState(var auth: AuthState) {
 }
 
 /**
- * Channel-neutral command handling (docs/vision/sms-security.md, channels.md):
+ * Channel-neutral command handling (specs/003-command-channel):
  * sender allowlist → grammar → arguments → one-time code → policy (risk × channel trust)
  * → two-step confirmation for risk 5 → run → short, paged reply. Every decision is audited
  * without codes or reply contents.

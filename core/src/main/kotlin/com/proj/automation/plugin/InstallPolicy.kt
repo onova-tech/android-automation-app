@@ -16,7 +16,7 @@ sealed class InstallDecision {
 }
 
 /**
- * Install/update rules for signatures (ADR-009). Invalid signatures never get here: loading
+ * Install/update rules for signatures (specs/006-package-signing). Invalid signatures never get here: loading
  * the package already rejected them.
  */
 object InstallPolicy {

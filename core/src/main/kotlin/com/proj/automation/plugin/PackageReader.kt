@@ -20,7 +20,7 @@ class PackageFiles(val entries: Map<String, ByteArray>) {
 }
 
 /**
- * Reads a `.agp` zip into memory with the protections listed in docs/vision/plugins.md
+ * Reads a `.agp` zip into memory with the protections listed in specs/002-plugin-packages (FR-002)
  * (section 11): no path traversal or absolute paths, no duplicate or case-colliding names,
  * bounded entry count and sizes (counted on decompressed bytes, which defeats zip bombs),
  * and only the file types a plugin may contain.
@@ -82,7 +82,7 @@ object PackageReader {
     private val YAML_DIRS = setOf("skills", "flows", "targets", "screens", "tests")
     private val LIB_DIRS = setOf("flows", "targets", "screens")
 
-    /** Allowed layout (plugins.md section 4.2); everything else is rejected */
+    /** Allowed layout (specs/002-plugin-packages, FR-001); everything else is rejected */
     internal fun checkAllowed(path: String) {
         val parts = path.split('/')
         val ext = path.substringAfterLast('.', "")

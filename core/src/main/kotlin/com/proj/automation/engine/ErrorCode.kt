@@ -1,7 +1,7 @@
 package com.proj.automation.engine
 
 /**
- * Structured error codes for step and run results (see docs/vision/action-catalog.md, section 4).
+ * Structured error codes for step and run results (see specs/001-execution-engine/contracts/workflow-language.md).
  * Channel adapters turn these into short user-facing replies.
  */
 enum class ErrorCode {

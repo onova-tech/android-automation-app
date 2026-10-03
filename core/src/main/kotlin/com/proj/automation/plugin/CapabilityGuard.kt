@@ -12,7 +12,7 @@ fun interface ActionGuard {
 }
 
 /**
- * Enforces a plugin's approved capabilities at run time (docs/vision/plugins.md section 8):
+ * Enforces a plugin's approved capabilities at run time (specs/002-plugin-packages, FR-007):
  *
  * - the plugin is **blind** to apps it was not approved for: actions and conditions see an empty
  *   screen there, so it can neither act on nor read them (including through `exists`/`screen_is`);

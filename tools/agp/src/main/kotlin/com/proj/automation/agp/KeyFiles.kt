@@ -20,7 +20,7 @@ import javax.crypto.spec.SecretKeySpec
 class KeyFileException(message: String) : Exception(message)
 
 /**
- * Developer signing keys (ADR-009). The private key file is encrypted with a passphrase
+ * Developer signing keys (specs/006-package-signing). The private key file is encrypted with a passphrase
  * (PBKDF2-HMAC-SHA256 → AES-256-GCM) and must never be committed or shared. The `.pub` file
  * holds only the public key and its fingerprint, which the developer can share with users.
  *

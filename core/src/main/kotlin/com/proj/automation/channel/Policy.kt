@@ -9,7 +9,7 @@ sealed class PolicyDecision {
 
 /**
  * Decides from a command's risk level (0–5) and the channel's trust profile
- * (docs/vision/sms-security.md section 5, channels.md section 4). Policy is local
+ * (specs/003-command-channel, FR-007). Policy is local
  * configuration: nothing in a message or a plugin can change it.
  */
 object Policy {

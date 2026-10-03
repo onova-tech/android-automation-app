@@ -53,7 +53,7 @@ private const val MAX_PACKAGE_BYTES = 8 * 1024 * 1024
 private class PendingInstall(val bytes: ByteArray, val plugin: Plugin, val keyword: String)
 
 /**
- * On-device admin screen (docs/vision/plugins.md section 10, sms-security.md). Everything that
+ * On-device admin screen (specs/003-command-channel, User Story 5). Everything that
  * changes what the agent may do — installing plugins, the code sheet, re-enabling after STOP —
  * asks for the device credential first. Nothing here is reachable from a remote channel.
  */
@@ -327,7 +327,7 @@ fun AdminScreen() {
             title = { Text("Approve plugin?") },
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // ——— Identity (ADR-009) ———
+                    // ——— Identity (specs/006-package-signing) ———
                     when (decision) {
                         is InstallDecision.Blocked -> Text("⛔ ${decision.reason}", color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
                         is InstallDecision.Allowed -> {

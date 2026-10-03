@@ -8,11 +8,11 @@ import java.text.Normalizer
 /**
  * Turns results into short replies and splits them for small channels. SMS replies are plain
  * text without accents (GSM-7 fits 160 characters; one accent drops a message to 70) and are
- * paged with `MORE` (docs/vision/sms-security.md section 2).
+ * paged with `MORE` (specs/003-command-channel, FR-008).
  */
 object Replies {
 
-    /** User-facing text per error code (docs/vision/action-catalog.md section 4) */
+    /** User-facing text per error code (specs/001-execution-engine/contracts/workflow-language.md) */
     fun forError(code: ErrorCode?): String = when (code) {
         ErrorCode.E_NOT_FOUND -> "Could not find it on screen"
         ErrorCode.E_TIMEOUT -> "Took too long"

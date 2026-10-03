@@ -8,7 +8,7 @@ import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 
-/** Signature state of a package (ADR-009). */
+/** Signature state of a package (specs/006-package-signing). */
 sealed class SignatureStatus {
     object Unsigned : SignatureStatus()
     data class Valid(val fingerprint: String, val publicKey: ByteArray) : SignatureStatus() {

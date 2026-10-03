@@ -35,7 +35,7 @@ data class Plugin(
 ) {
     val languages: List<String> get() = strings.keys.sorted()
 
-    /** Text shown in admin mode before the owner approves the install (plugins.md section 10) */
+    /** Text shown in admin mode before the owner approves the install (specs/002-plugin-packages, User Story 2) */
     fun installSummary(): String = buildString {
         val m = manifest
         appendLine("${m.name} ${m.version} (${m.id})")
@@ -67,7 +67,7 @@ data class Plugin(
 /**
  * Loads a `.agp` package: verifies `PACKAGE.lock`, parses the manifest, libraries, targets,
  * screens, flows, skills and commands, and runs the static checks described in
- * docs/vision/plugins.md. Any problem raises [PluginPackageException]; nothing partial is returned.
+ * specs/002-plugin-packages. Any problem raises [PluginPackageException]; nothing partial is returned.
  */
 object PluginLoader {
 
@@ -193,7 +193,7 @@ object PluginLoader {
     private val UI_ACTIONS = setOf(ActionType.CLICK, ActionType.TYPE, ActionType.SCROLL, ActionType.SCROLL_UNTIL)
 
     /**
-     * Minimum risk level of every command (docs/vision/plugins.md section 9). A plugin can
+     * Minimum risk level of every command (specs/002-plugin-packages, FR-006). A plugin can
      * declare a higher level per skill, never a lower one.
      */
     fun riskFloor(m: Manifest): Int = when {
