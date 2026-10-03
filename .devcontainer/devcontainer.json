@@ -6,9 +6,13 @@
   },
   "containerEnv": {
     "ANDROID_HOME": "/usr/local/android-sdk",
-    "ANDROID_SDK_ROOT": "/usr/local/android-sdk"
+    "ANDROID_SDK_ROOT": "/usr/local/android-sdk",
+    "ADB_SERVER_SOCKET": "tcp:host.docker.internal:5037"
   },
-  "hostRequirements": { "cpus": 4, "memory": "8gb" },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "vscode": {
@@ -21,5 +25,11 @@
         "java.jdt.ls.java.home": "/usr/local/sdkman/candidates/java/current"
       }
     }
+  },
+  "runArgs": [
+    "--add-host=host.docker.internal:host-gateway"
+  ],
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/usr/local/android-sdk/platform-tools"
   }
 }
