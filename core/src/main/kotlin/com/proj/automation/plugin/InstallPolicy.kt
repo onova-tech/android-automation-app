@@ -11,7 +11,7 @@ sealed class InstallDecision {
      * Installation may proceed after the owner reads [warnings] (empty when the signer is trusted).
      * [verifiedAs] is the trusted developer's name, if any.
      */
-    data class Allowed(val warnings: List<String>, val verifiedAs: String?) : InstallDecision()
+    data class Allowed(val warnings: List<String>, val verifiedAs: String?, val classification: Classification) : InstallDecision()
     data class Blocked(val reason: String) : InstallDecision()
 }
 
@@ -24,8 +24,15 @@ object InstallPolicy {
     /**
      * @param trusted trusted keys, fingerprint → developer name (admin mode only)
      * @param previous the signer of the currently installed version with the same plugin id, if any
+     * @param financialApps apps the base app treats as financial (rule 1)
      */
-    fun evaluate(plugin: Plugin, trusted: Map<String, String>, previous: InstalledSigner?): InstallDecision {
+    fun evaluate(
+        plugin: Plugin,
+        trusted: Map<String, String>,
+        previous: InstalledSigner?,
+        financialApps: Set<String> = PluginClassifier.KNOWN_FINANCIAL_APPS
+    ): InstallDecision {
+        val classification = PluginClassifier.classify(plugin, financialApps)
         val sig = plugin.signature
         val fingerprint = (sig as? SignatureStatus.Valid)?.fingerprint
         val trustedName = fingerprint?.let { trusted[it] }
@@ -38,10 +45,16 @@ object InstallPolicy {
                     "To change the developer, uninstall the plugin first (its secrets will be deleted)."
             )
         }
-        if (plugin.manifest.category == Category.FINANCIAL && trustedName == null) {
+        if (classification.financial && plugin.interruptRules.isNotEmpty()) {
             return InstallDecision.Blocked(
-                if (fingerprint == null) "Financial plugins must be signed by a trusted developer; this one is unsigned."
-                else "Financial plugins must be signed by a trusted developer. Trust key $fingerprint first if you know who it belongs to."
+                "Treated as financial (${classification.financialReasons.joinToString()}), and financial plugins cannot have interrupt rules."
+            )
+        }
+        if (classification.needsTrustedSigner && trustedName == null) {
+            val why = classification.reasons.joinToString()
+            return InstallDecision.Blocked(
+                if (fingerprint == null) "This plugin must be signed by a trusted developer ($why); it is unsigned."
+                else "This plugin must be signed by a trusted developer ($why). Trust key $fingerprint first if you know who it belongs to."
             )
         }
         val warnings = when {
@@ -49,6 +62,6 @@ object InstallPolicy {
             trustedName == null -> listOf("Signed by an unknown developer. Key fingerprint: $fingerprint")
             else -> emptyList()
         }
-        return InstallDecision.Allowed(warnings, trustedName)
+        return InstallDecision.Allowed(warnings, trustedName, classification)
     }
 }

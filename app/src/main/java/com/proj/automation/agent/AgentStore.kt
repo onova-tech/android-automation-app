@@ -4,6 +4,7 @@ import android.content.Context
 import com.proj.automation.plugin.Plugin
 import com.proj.automation.plugin.PluginLoader
 import com.proj.automation.plugin.InstalledSigner
+import com.proj.automation.plugin.PluginClassifier
 import com.proj.automation.plugin.PluginPackageException
 import com.proj.automation.plugin.SignatureStatus
 import com.proj.automation.security.AuditEntry
@@ -21,7 +22,9 @@ data class AgentSettings(
     val sheetId: Int = 0,
     val sheetSize: Int = 100,
     /** Set by the STOP command; only the on-device admin UI clears it */
-    val stopped: Boolean = false
+    val stopped: Boolean = false,
+    /** Apps treated as financial whatever a plugin declares (ADR-009 §9) */
+    val financialApps: Set<String> = PluginClassifier.KNOWN_FINANCIAL_APPS
 )
 
 /**
@@ -115,7 +118,10 @@ class AgentStore(context: Context) {
             allowedSenders = (0 until senders.length()).map { senders.getString(it) }.toSet(),
             sheetId = json.optInt("sheetId", 0),
             sheetSize = json.optInt("sheetSize", 100),
-            stopped = json.optBoolean("stopped", false)
+            stopped = json.optBoolean("stopped", false),
+            financialApps = json.optJSONArray("financialApps")
+                ?.let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
+                ?: PluginClassifier.KNOWN_FINANCIAL_APPS
         )
     }
 
@@ -126,6 +132,7 @@ class AgentStore(context: Context) {
             .put("sheetId", s.sheetId)
             .put("sheetSize", s.sheetSize)
             .put("stopped", s.stopped)
+            .put("financialApps", JSONArray(s.financialApps.sorted()))
             .toString(2)
     )
 

@@ -306,6 +306,8 @@ The plugin may suggest a `category`. The base app computes the **minimum risk le
 | Sends messages | 3 |
 | Reads messages | 2 |
 
+**The base app classifies, the plugin only suggests.** A plugin is treated as financial if it declares `category: financial` **or** operates or reads any app on the phone's list of financial apps (owner-managed; ships with confirmed package names only). Plugins that store secrets or type the device PIN need a trusted signer even when not financial. See [ADR-009](../adr/ADR-009-package-signing.md) §9.
+
 A financial plugin may declare `scope: read_only`. The base app then additionally refuses to click any target that looks like a payment or transfer entry (defense in depth, see [sms-security.md](sms-security.md) section 6.0), and rejects any `transfer`-type command.
 
 Limits (per-operation and daily amounts, allowed hours, beneficiary list, rate limits) are stored in the base app's policy, entered in admin mode. A plugin cannot raise a limit, add a beneficiary or change an alias. See [sms-security.md](sms-security.md).
