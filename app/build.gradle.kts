@@ -81,7 +81,7 @@ dependencies {
     implementation(project(":core"))
 
     // ——— YAML Parsing ———
-    implementation("org.yaml:snakeyaml:2.2")
+    implementation("org.yaml:snakeyaml:2.7")
 
     // ——— Jetpack Compose ———
     val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
@@ -92,20 +92,20 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
 
     // ——— Core Android ———
-    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
-    implementation("androidx.navigation:navigation-compose:2.7.6")
+    implementation("androidx.navigation:navigation-compose:2.10.2")
 
     // ——— Coroutines ———
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
 
     // ——— Testing ———
     testImplementation("junit:junit:4.13.2")
-    testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("io.mockk:mockk:1.14.11")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.1")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.1")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
