@@ -14,8 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "android-automation-app-poc"
+rootProject.name = "android-automation-app"
 include(":app")
 include(":core")
-include(":agp")
-project(":agp").projectDir = file("tools/agp")

@@ -52,7 +52,7 @@ class PluginPackageTest {
 
     @Test
     fun `builds and loads the bundled whatsapp plugin`() {
-        val result = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries"))
+        val result = PackageBuilder.build(File("src/test/resources/whatsapp"), File("src/test/resources/libraries"))
         val plugin = result.plugin
 
         assertEquals("whatsapp", plugin.manifest.id)
@@ -70,15 +70,15 @@ class PluginPackageTest {
 
     @Test
     fun `builds are reproducible`() {
-        val a = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries"))
-        val b = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries"))
+        val a = PackageBuilder.build(File("src/test/resources/whatsapp"), File("src/test/resources/libraries"))
+        val b = PackageBuilder.build(File("src/test/resources/whatsapp"), File("src/test/resources/libraries"))
         assertArrayEquals(a.bytes, b.bytes)
         assertEquals(a.plugin.packageHash, b.plugin.packageHash)
     }
 
     @Test
     fun `named targets in skills resolve to full target definitions`() {
-        val plugin = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries")).plugin
+        val plugin = PackageBuilder.build(File("src/test/resources/whatsapp"), File("src/test/resources/libraries")).plugin
         val click = plugin.skills.getValue("send").program.body.filterIsInstance<Node.Action>()
             .first { it.step.action == ActionType.CLICK }
         // texts stay as templates until run time, when the device language picks them

@@ -17,8 +17,8 @@ import java.io.File
 
 class ReplayTest {
 
-    private val dir = File("../plugins/whatsapp")
-    private val plugin = PackageBuilder.build(dir, File("../plugins/libraries")).plugin
+    private val dir = File("src/test/resources/whatsapp")
+    private val plugin = PackageBuilder.build(dir, File("src/test/resources/libraries")).plugin
     private fun fixture(name: String) = dir.resolve("fixtures/$name").takeIf { it.isFile }?.readText()
 
     @Test

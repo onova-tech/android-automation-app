@@ -65,38 +65,17 @@ and `on_failure` (`abort`, `continue`, `retry(n, ms)`).
 
 ## Plugins and the `agp` tool
 
-```bash
-./gradlew :agp:installDist
-AGP=tools/agp/build/install/agp/bin/agp
-$AGP validate plugins/whatsapp --libs plugins/libraries
-$AGP build    plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp
-$AGP inspect  build/whatsapp.agp
-$AGP test     plugins/whatsapp --libs plugins/libraries        # replay tests/ against fixtures/
-$AGP targets  plugins/whatsapp my_screen_dump.xml --libs plugins/libraries --lang pt
-```
-
-Signing ([spec 006](specs/006-package-signing/spec.md)): developers sign packages like APKs. Unsigned packages still install, with a
-warning that their identity could not be verified; financial plugins need a trusted signer.
-
-```bash
-$AGP keygen -o ~/keys/ana.key --name "Ana"            # passphrase from AGP_KEY_PASSWORD or the terminal
-$AGP build  plugins/whatsapp --libs plugins/libraries -o build/whatsapp.agp --key ~/keys/ana.key
-$AGP verify build/whatsapp.agp                        # prints the signer's key fingerprint
-$AGP fingerprint ~/keys/ana.pub                       # share this with users so they can trust the key
-```
-
-`agp test` runs each skill test with the same engine as the phone, against recorded screens, in
-virtual time. The WhatsApp example has six (sent, not confirmed, chat does not open, a dialog in
-the way, read chat, and a phone set to English with a changed button id).
-
-`agp targets` checks a plugin against a real screen: dump it with
-`adb shell uiautomator dump /sdcard/s.xml && adb pull /sdcard/s.xml` (the file stays on your computer).
+Plugins, shared libraries and the `agp` tool (validate, build, sign, replay-test and check plugins
+against real screens) live in **[android-automation-plugins](https://github.com/onova-tech/android-automation-plugins)**. That repository builds `agp`
+from this repository's `core` (pinned as a git submodule), so plugins are validated and tested
+with exactly the engine the phone runs. A copy of the WhatsApp plugin stays in
+`core/src/test/resources/` as an engine test fixture.
 
 ## Downloads
 
-Every merge to `main` publishes a [release](https://github.com/onova-tech/android-automation-app-poc/releases)
-with the signed APK (`android-automation-<version>.apk`), the plugin tool (`agp-<version>.zip`, needs
-Java 17: unzip and run `bin/agp`) and `SHA256SUMS`. Pull requests run the tests
+Every merge to `main` publishes a [release](https://github.com/onova-tech/android-automation-app/releases)
+with the signed APK (`android-automation-<version>.apk`) and `SHA256SUMS`. The `agp` tool is released
+from the [plugins repository](https://github.com/onova-tech/android-automation-plugins/releases). Pull requests run the tests
 (`.github/workflows/ci.yml`); `main` only changes through pull requests.
 
 ## Building and testing
@@ -116,9 +95,8 @@ screen to add allowed senders, generate a code sheet and install plugins.
 
 | Module | Contents |
 |--------|----------|
-| `:core` (Kotlin/JVM, no Android) | Engine and actions behind a `DevicePort` (`engine/`), replay device and runner (`replay/`), workflow language and interpreter (`dsl/`), action steps (`parser/`), targets and ranker (`resolve/`), screen snapshots and `uiautomator` XML (`ui/`), plugin packages (`plugin/`), command channel (`channel/`), code sheet and audit (`security/`), error codes and results (`engine/`) |
+| `:core` (Kotlin/JVM, no Android; also buildable on its own) | Engine and actions behind a `DevicePort` (`engine/`), replay device and runner (`replay/`), workflow language and interpreter (`dsl/`), action steps (`parser/`), targets and ranker (`resolve/`), screen snapshots and `uiautomator` XML (`ui/`), plugin packages (`plugin/`), command channel (`channel/`), code sheet and audit (`security/`), error codes and results (`engine/`) |
 | `:app` (Android) | `AndroidDevicePort` over the accessibility service, live snapshots, SMS adapter, agent coordinator and storage (`agent/`), Keystore keys, admin screen |
-| `:agp` (`tools/agp`, Kotlin/JVM) | Command-line tool for plugin authors |
 
 ## Known limitations
 
@@ -129,7 +107,7 @@ screen to add allowed senders, generate a code sheet and install plugins.
 | Secrets (`type_secret`) not implemented | Needed for bank logins; comes with the agent phone |
 | Screens marked `FLAG_SECURE` cannot be captured | Targets work on the accessibility tree, which is unaffected |
 | Sideload only | Accessibility-based automation is not allowed on the Play Store |
-| The example WhatsApp plugin is not validated | Its hints are guesses until checked with `agp targets` on a real dump |
+| The example WhatsApp plugin is not validated | Its hints are guesses until checked with `agp targets` on a real dump (plugins repository) |
 
 ## Specifications (spec-driven development)
 

@@ -15,6 +15,13 @@ each feature has a folder here with:
 New work: run `/speckit-specify <description>` (creates `specs/NNN-name/`), then `/speckit-plan`,
 `/speckit-tasks` and `/speckit-implement`. Branches stay `feature/<name>`.
 
+## Repositories
+
+| Repository | Content |
+|------------|---------|
+| [android-automation-app](https://github.com/onova-tech/android-automation-app) (this one) | Engine (`core`), Android app, specs |
+| [android-automation-plugins](https://github.com/onova-tech/android-automation-plugins) | Plugins, shared libraries and the `agp` tool, built against this repository's `core` (git submodule) |
+
 ## Product in one paragraph
 
 A dedicated Android phone (the **agent**) runs 24x7 in a safe place and operates apps for its

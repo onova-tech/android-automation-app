@@ -154,7 +154,7 @@ class ChannelTest {
 
     private val owner = "+5511999998888"
     private val sms = ChannelConfig("sms", TrustProfile.WEAK_REMOTE, ChannelCapabilities.PLAIN_SMS, setOf(owner))
-    private val whatsapp = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries")).plugin
+    private val whatsapp = PackageBuilder.build(File("src/test/resources/whatsapp"), File("src/test/resources/libraries")).plugin
     private val audit = AuditLog()
     private val state = RouterState(AuthState(7))
     private val router = CommandRouter(mapOf("WA" to whatsapp, "BANK" to transferPlugin()), CodeVerifier(sheet), audit, SecureRandom())

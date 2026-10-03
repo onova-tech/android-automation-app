@@ -33,7 +33,7 @@ A plugin author writes tests in `tests/*.yaml` (skill, arguments, starting scree
 transitions, expected result and interaction log) and runs `agp test`. The real engine,
 resolver and capability guard run against recorded screens in virtual time.
 
-**Independent Test**: `ReplayTest`; `agp test plugins/whatsapp` runs six cases.
+**Independent Test**: `ReplayTest`; `agp test plugins/whatsapp` (plugins repository) runs six cases.
 
 **Acceptance Scenarios**:
 

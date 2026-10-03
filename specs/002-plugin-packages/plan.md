@@ -18,7 +18,7 @@ reproducible packages from source folders.
 
 **Testing**: JUnit 5 (`PluginPackageTest`), replay (004)
 
-**Project Type**: JVM library + CLI (`tools/agp`) + Android app
+**Project Type**: JVM library + Android app; the `agp` CLI lives in the plugins repository
 
 **Constraints**: No code in packages; reproducible builds (sorted entries, fixed timestamps)
 
@@ -45,7 +45,10 @@ core/src/main/kotlin/com/proj/automation/plugin/
 ├── PluginLoader.kt      # merge, references, risk floor, install summary
 ├── PackageBuilder.kt    # vendoring + build
 └── CapabilityGuard.kt   # runtime blindness and E_CAPABILITY
-tools/agp/src/main/kotlin/…/Main.kt
+core/src/test/resources/{whatsapp,libraries}/   # engine test fixtures
+
+# github.com/onova-tech/android-automation-plugins
+agp/                                 # CLI, built against engine/core (git submodule)
 plugins/whatsapp/                    # example plugin
-plugins/libraries/android-common/    # first library
+libraries/android-common/            # first library
 ```

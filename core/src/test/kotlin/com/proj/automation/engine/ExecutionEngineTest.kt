@@ -71,7 +71,7 @@ class ExecutionEngineTest {
 
     @Test
     fun `skills run under the plugin's capabilities`() = runTest {
-        val plugin = PackageBuilder.build(File("../plugins/whatsapp"), File("../plugins/libraries")).plugin
+        val plugin = PackageBuilder.build(File("src/test/resources/whatsapp"), File("src/test/resources/libraries")).plugin
         val device = ScreenDevice(null)
         val real = ExecutionEngine(
             ActionDispatcher(buildHandlerRegistry()), ErrorHandler(), EventBus(), device = { device },

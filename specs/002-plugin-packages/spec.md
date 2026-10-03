@@ -19,7 +19,7 @@ targets, screens), validates it, and builds a reproducible `.agp` with the `agp`
 
 **Why this priority**: Without packages there is nothing for the agent to run.
 
-**Independent Test**: `agp validate` and `agp build` on `plugins/whatsapp`; building twice
+**Independent Test**: `agp validate` and `agp build` on the WhatsApp example plugin; building twice
 gives the same bytes and the same package hash.
 
 **Acceptance Scenarios**:

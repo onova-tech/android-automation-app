@@ -1,8 +1,10 @@
 // Pure Kotlin/JVM core: workflow language, parsers, element resolution, plugin packages.
-// No Android dependencies, so it is shared by the app and by the `agp` command-line tool.
+// No Android dependencies, so it is shared by the app and by the `agp` tool in the plugins repository.
 plugins {
     id("org.jetbrains.kotlin.jvm")
 }
+
+group = "com.proj.automation"
 
 kotlin {
     jvmToolchain(17)

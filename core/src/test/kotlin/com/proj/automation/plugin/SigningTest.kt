@@ -14,8 +14,8 @@ class SigningTest {
 
     private val dev = keyPair()
     private val other = keyPair()
-    private val pluginDir = File("../plugins/whatsapp")
-    private val libs = File("../plugins/libraries")
+    private val pluginDir = File("src/test/resources/whatsapp")
+    private val libs = File("src/test/resources/libraries")
 
     private fun fingerprint(k: KeyPair) = PackageSignature.fingerprint(k.public.encoded)
 
