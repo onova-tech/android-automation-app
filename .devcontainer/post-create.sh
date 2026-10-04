@@ -4,6 +4,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# The base image ships a Yarn apt source whose GPG key has expired, which makes apt-get update fail
+# (and, under set -e, abort this script); Yarn isn't needed here, so disable it.
+if [ -f /etc/apt/sources.list.d/yarn.list ]; then
+  sudo mv /etc/apt/sources.list.d/yarn.list /etc/apt/sources.list.d/yarn.list.disabled
+fi
+
 SDK="${ANDROID_HOME:-/usr/local/android-sdk}"
 if [ ! -d "$SDK/platforms/android-37.0" ]; then
   sudo mkdir -p "$SDK/cmdline-tools" && sudo chown -R "$(id -un)" "$SDK"
